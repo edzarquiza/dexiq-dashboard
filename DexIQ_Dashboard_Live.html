@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIT Dashboard — Dexterous Group</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#f4f5f7;--white:#ffffff;--s1:#f9fafb;--s2:#f0f1f3;
+  --border:#e3e5e8;--border2:#d0d3d8;
+  --teal:#00b4a8;--blue:#1e4fd8;--grad:linear-gradient(90deg,#00b4a8,#1e4fd8);
+  --yellow:#f5a623;--green:#16a34a;--red:#dc2626;--orange:#ea580c;--purple:#7c3aed;
+  --text:#0f1117;--text2:#4b5563;--text3:#9ca3af;
+  --r:10px;--font:'Figtree',sans-serif;--mono:'DM Mono',monospace;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;font-size:14px}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:200;background:var(--white);border-bottom:2px solid transparent;border-image:var(--grad) 1;display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:60px;box-shadow:var(--shadow)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-icon{width:36px;height:36px;background:var(--grad);border-radius:8px;display:grid;place-items:center;color:#fff;font-size:16px;font-weight:900;letter-spacing:-1px}
+.logo-text{display:flex;flex-direction:column}
+.logo-brand{font-size:13px;font-weight:800;color:var(--text);letter-spacing:-.3px}
+.logo-sub{font-size:10px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:.8px}
+.logo-divider{width:1px;height:28px;background:var(--border);margin:0 4px}
+.logo-dash{font-size:14px;font-weight:700;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav{display:flex;gap:2px}
+.nb{padding:7px 14px;border-radius:8px;border:none;background:transparent;color:var(--text2);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:6px}
+.nb:hover{color:var(--text);background:var(--s2)}
+.nb.on{color:var(--white);background:var(--grad)}
+.nb.on{background:linear-gradient(90deg,var(--teal),var(--blue))}
+.ndot{width:6px;height:6px;border-radius:50%}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.live-pill{display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--s1);border:1px solid var(--border);border-radius:20px;font-size:11.5px;color:var(--text2);font-family:var(--mono);cursor:pointer;transition:all .2s}
+.live-pill:hover{border-color:var(--teal)}
+.ldot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.ldot.syncing{background:var(--yellow);animation:pulse .6s infinite}
+.ldot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ── LOADING ── */
+#loading{position:fixed;inset:0;background:var(--white);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999}
+.spin{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{font-size:13px;color:var(--text3);font-weight:500}
+.load-logo{font-size:22px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:4px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--white);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:10px;padding:11px 16px;font-size:13px;box-shadow:var(--shadow-md);z-index:999;transform:translateY(60px);opacity:0;transition:all .3s;pointer-events:none}
+.toast.show{transform:none;opacity:1}
+.toast.err{border-left-color:var(--red)}
+
+/* ── PANELS ── */
+.panel{display:none;padding:24px 28px;animation:fadein .2s ease}
+.panel.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── PAGE HEADER ── */
+.pg-head{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px}
+.pg-title{font-size:26px;font-weight:800;letter-spacing:-.8px;color:var(--text)}
+.pg-title em{font-style:normal;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.pg-sub{font-size:12px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+.pg-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ── KPI CARDS ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px}
+.kpi{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px 16px 14px;position:relative;overflow:hidden;box-shadow:var(--shadow);transition:box-shadow .2s,transform .15s;cursor:default}
+.kpi:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--grad))}
+.kpi-l{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px}
+.kpi-v{font-size:28px;font-weight:800;letter-spacing:-1.5px;line-height:1;color:var(--text)}
+.kpi-u{font-size:11px;color:var(--text3);margin-top:5px}
+.kpi-ic{position:absolute;top:16px;right:14px;font-size:20px;opacity:.15}
+.trend{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:700;margin-top:6px;padding:2px 7px;border-radius:20px}
+.up{background:#dcfce7;color:#16a34a}
+.down{background:#fee2e2;color:#dc2626}
+.neutral{background:var(--s2);color:var(--text3)}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+.g65{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px}
+.g35{display:grid;grid-template-columns:2fr 3fr;gap:16px;margin-bottom:16px}
+.full{margin-bottom:16px}
+@media(max-width:900px){.g2,.g3,.g65,.g35{grid-template-columns:1fr}}
+
+/* ── CARD ── */
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:18px;height:100%;box-shadow:var(--shadow)}
+.card-hd{font-size:11.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.7px;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-hd .bar{width:3px;height:14px;border-radius:2px;background:var(--cc,var(--grad))}
+.card-hd .bar.grad{background:var(--grad)}
+
+/* ── GRADIENT BAR ACCENT ── */
+.grad-bar{height:3px;background:var(--grad);border-radius:2px;margin-bottom:14px}
+
+/* ── FILTERS ── */
+.filter-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.fl{font-size:10.5px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.fb{padding:5px 12px;border-radius:7px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--white);color:var(--text2);cursor:pointer;transition:all .15s;font-family:var(--font)}
+.fb:hover{border-color:var(--teal);color:var(--teal)}
+.fb.on{background:var(--grad);border-color:transparent;color:var(--white)}
+.fsel{padding:5px 11px;border-radius:7px;font-size:12px;border:1.5px solid var(--border);background:var(--white);color:var(--text);font-family:var(--font);outline:none;cursor:pointer;font-weight:500}
+.fsel:focus{border-color:var(--teal)}
+
+/* ── TABLE ── */
+.tw{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+.ts{max-height:300px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{background:var(--s1);color:var(--text2);padding:10px 14px;text-align:left;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:1}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--s1)}
+tbody td{padding:9px 14px;color:var(--text);white-space:nowrap}
+.nm{font-family:var(--mono);font-size:12px;text-align:right}
+td.nm{text-align:right}
+thead th.nm{text-align:right}
+
+/* ── CHIPS ── */
+.chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;white-space:nowrap}
+.chip::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.c-done{background:#dcfce7;color:#16a34a}
+.c-prog{background:#dbeafe;color:#1e40af}
+.c-todo{background:#f3f4f6;color:#6b7280}
+.c-qa{background:#ede9fe;color:#7c3aed}
+.c-live{background:#ccfbf1;color:#0f766e}
+.c-back{background:#f3f4f6;color:#6b7280}
+.c-on{background:#dcfce7;color:#16a34a}
+.c-ov{background:#fee2e2;color:#dc2626}
+.c-mild{background:#fef9c3;color:#ca8a04}
+.c-ns{background:#f3f4f6;color:#6b7280}
+.c-ongoing{background:#dbeafe;color:#1e40af}
+.c-high{background:#fee2e2;color:#dc2626}
+.c-med{background:#fef9c3;color:#ca8a04}
+.c-low{background:#dcfce7;color:#16a34a}
+
+/* ── PROGRESS ── */
+.pbar{background:var(--s2);border-radius:4px;height:6px;overflow:hidden;margin-top:4px}
+.pfill{height:100%;border-radius:4px;transition:width .6s ease}
+
+/* ── METRIC ROW ── */
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.mrow:last-child{border-bottom:none}
+.mrow-l{font-size:12.5px;color:var(--text2);max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow-r{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--text)}
+
+/* ── INSIGHT ── */
+.insight{background:linear-gradient(135deg,rgba(0,180,168,.06),rgba(30,79,216,.04));border:1.5px solid rgba(0,180,168,.2);border-radius:var(--r);padding:13px 16px;margin-bottom:18px;font-size:12.5px;color:var(--text2);line-height:1.7}
+.insight strong{color:var(--teal);font-weight:700}
+.insight.warn{background:linear-gradient(135deg,rgba(245,166,35,.06),rgba(234,88,12,.04));border-color:rgba(245,166,35,.25)}
+.insight.warn strong{color:var(--orange)}
+
+/* ── GAUGE ── */
+.gauge-score{font-size:38px;font-weight:800;letter-spacing:-2px;line-height:1}
+.gauge-bar{background:var(--s2);border-radius:6px;height:8px;overflow:hidden;margin:6px 0 4px}
+.gauge-fill{height:100%;border-radius:6px;background:var(--grad);transition:width .8s ease}
+
+/* ── SECTION TAG ── */
+.sec-tag{display:inline-flex;align-items:center;gap:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--teal);margin-bottom:6px}
+.sec-tag::before{content:'';display:block;width:16px;height:2px;background:var(--grad);border-radius:1px}
+
+/* ── MISC ── */
+.empty{text-align:center;padding:32px;color:var(--text3);font-size:13px}
+canvas{max-width:100%}
+code.k{font-family:var(--mono);font-size:11px;background:var(--s2);padding:1px 5px;border-radius:4px}
+.dl-pos{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--red)}
+.dl-neg{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--green)}
+.dl-z{font-family:var(--mono);font-size:12px;color:var(--text3)}
+.tag{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10.5px;font-weight:700;background:var(--s2);color:var(--text2)}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="load-logo">BIT Dashboard</div>
+  <div class="spin"></div>
+  <div class="load-txt">Loading data from SharePoint…</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<div id="app" style="display:none">
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">D</div>
+    <div class="logo-text">
+      <div class="logo-brand">Dexterous Group</div>
+      <div class="logo-sub">Business Intelligence & Technology</div>
+    </div>
+    <div class="logo-divider"></div>
+    <div class="logo-dash">BIT Dashboard</div>
+  </div>
+  <nav class="nav">
+    <button class="nb on" onclick="tab('overview',this)"><span class="ndot" style="background:#00b4a8"></span>Overview</button>
+    <button class="nb" onclick="tab('bit',this)"><span class="ndot" style="background:#1e4fd8"></span>BIT Team</button>
+    <button class="nb" onclick="tab('web',this)"><span class="ndot" style="background:#7c3aed"></span>Web Team</button>
+    <button class="nb" onclick="tab('projects',this)"><span class="ndot" style="background:#16a34a"></span>Projects</button>
+    <button class="nb" onclick="tab('automations',this)"><span class="ndot" style="background:#f5a623"></span>Automations</button>
+    <button class="nb" onclick="tab('support',this)"><span class="ndot" style="background:#ea580c"></span>Support</button>
+    <button class="nb" onclick="tab('dexiq',this)"><span class="ndot" style="background:#dc2626"></span>DexIQ Board</button>
+  </nav>
+  <div class="topbar-r">
+    <div class="live-pill" onclick="manualRefresh()">
+      <span class="ldot" id="ldot"></span>
+      <span id="llabel">Live</span>
+      <span id="ltime" style="color:var(--text3);margin-left:2px"></span>
+    </div>
+  </div>
+</div>
+
+<!-- OVERVIEW -->
+<div id="panel-overview" class="panel active">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">Command Center</div>
+      <div class="pg-title">BIT <em>Overview</em></div>
+      <div class="pg-sub" id="ov-sub"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="ov-kpis"></div>
+  <div class="g3">
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>BIT Ticket Status</div>
+      <div style="height:190px"><canvas id="ov-bit-status"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#7c3aed"></span>Web Ticket Status</div>
+      <div style="height:190px"><canvas id="ov-web-status"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#16a34a"></span>Project SLA Status</div>
+      <div style="height:190px"><canvas id="ov-proj-sla"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#f5a623"></span>Automation Time Savings · by Week</div>
+      <div style="height:210px"><canvas id="ov-auto-week"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#ea580c"></span>IT Support — SD Requests · by Week</div>
+      <div style="height:210px"><canvas id="ov-support-week"></canvas></div>
+    </div>
+  </div>
+  <div class="g3">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#16a34a"></span>Security Score vs Target</div>
+      <div id="ov-security"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Monthly Metrics — Web</div>
+      <div id="ov-monthly-web" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#1e4fd8"></span>Monthly Metrics — Automation</div>
+      <div id="ov-monthly-auto" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BIT -->
+<div id="panel-bit" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">DA Project</div>
+      <div class="pg-title">BIT Team <em>Performance</em></div>
+      <div class="pg-sub" id="bit-sub"></div>
+    </div>
+    <div class="pg-actions"><span class="fl">Sprint:</span><div id="bit-sf" style="display:flex;gap:5px;flex-wrap:wrap"></div></div>
+  </div>
+  <div id="bit-insight" class="insight"></div>
+  <div class="kpi-grid" id="bit-kpis"></div>
+  <div class="g65">
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Time Spent vs Estimate — by Assignee</div>
+      <div style="height:210px"><canvas id="bit-c-assignee"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#7c3aed"></span>Status Distribution</div>
+      <div style="height:210px"><canvas id="bit-c-status"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#1e4fd8"></span>Sprint Velocity</div>
+      <div style="height:220px"><canvas id="bit-c-sprint"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#f5a623"></span>Tickets by Parent Project</div>
+      <div style="height:220px"><canvas id="bit-c-parent"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Assignee Breakdown</div>
+      <div class="tw"><table id="bit-t-assignee"><thead><tr><th>Assignee</th><th class="nm">Tickets</th><th class="nm">TS (h)</th><th class="nm">OE (h)</th><th class="nm">Variance</th><th class="nm">Eff %</th><th class="nm">Done</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#f5a623"></span>Benchmark Status</div>
+      <div id="bit-benchmark"></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-hd"><span class="bar" style="--cc:var(--text3)"></span>All Issues</div>
+    <div class="filter-row">
+      <select class="fsel" id="bit-fa" onchange="renderBitTable()"><option value="">All Assignees</option></select>
+      <select class="fsel" id="bit-fs" onchange="renderBitTable()"><option value="">All Statuses</option></select>
+      <select class="fsel" id="bit-fp" onchange="renderBitTable()"><option value="">All Parent Projects</option></select>
+    </div>
+    <div class="tw ts">
+      <table id="bit-t-issues"><thead><tr><th>Key</th><th>Summary</th><th>Parent Project</th><th>Sprint</th><th>Assignee</th><th>Type</th><th>Status</th><th class="nm">TS (h)</th><th class="nm">OE (h)</th><th class="nm">Variance</th><th class="nm">Eff %</th><th>Benchmark</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- WEB -->
+<div id="panel-web" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">WD Project</div>
+      <div class="pg-title">Web Team <em>Performance</em></div>
+      <div class="pg-sub" id="web-sub"></div>
+    </div>
+    <div class="pg-actions"><span class="fl">Board:</span><div id="web-bf" style="display:flex;gap:5px;flex-wrap:wrap"></div></div>
+  </div>
+  <div class="kpi-grid" id="web-kpis"></div>
+  <div class="g65">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#7c3aed"></span>Time Spent vs Estimate — by Board</div>
+      <div style="height:210px"><canvas id="web-c-board"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#7c3aed"></span>Status Distribution</div>
+      <div style="height:210px"><canvas id="web-c-status"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#1e4fd8"></span>Sprint Breakdown</div>
+      <div style="height:220px"><canvas id="web-c-sprint"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#7c3aed"></span>Board Summary</div>
+      <div class="tw"><table id="web-t-board"><thead><tr><th>Board</th><th class="nm">Tickets</th><th class="nm">TS (h)</th><th class="nm">OE (h)</th><th class="nm">Variance</th><th class="nm">Eff %</th><th class="nm">Done</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-hd"><span class="bar" style="--cc:var(--text3)"></span>All Issues</div>
+    <div class="filter-row">
+      <select class="fsel" id="web-fb2" onchange="renderWebTable()"><option value="">All Boards</option></select>
+      <select class="fsel" id="web-fs" onchange="renderWebTable()"><option value="">All Statuses</option></select>
+      <select class="fsel" id="web-fp" onchange="renderWebTable()"><option value="">All Priorities</option></select>
+    </div>
+    <div class="tw ts">
+      <table id="web-t-issues"><thead><tr><th>Key</th><th>Summary</th><th>Sprint</th><th>Board</th><th>Status</th><th>Priority</th><th class="nm">TS (h)</th><th class="nm">OE (h)</th><th class="nm">Variance</th><th>Benchmark</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS -->
+<div id="panel-projects" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">BIT Automation Projects</div>
+      <div class="pg-title">Projects <em>SLA Tracker</em></div>
+      <div class="pg-sub" id="proj-sub"></div>
+    </div>
+    <div class="pg-actions"><span class="fl">Owner:</span><div id="proj-of" style="display:flex;gap:5px"></div></div>
+  </div>
+  <div class="kpi-grid" id="proj-kpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#16a34a"></span>SLA Distribution</div>
+      <div style="height:220px"><canvas id="proj-c-sla"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Projects by Owner</div>
+      <div style="height:220px"><canvas id="proj-c-owner"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-hd"><span class="bar" style="--cc:#16a34a"></span>Delivery Status</div>
+    <div class="filter-row">
+      <select class="fsel" id="proj-fs" onchange="renderProjTable()"><option value="">All Statuses</option><option>Done</option><option>Ongoing</option><option>Not Started</option></select>
+      <select class="fsel" id="proj-fsla" onchange="renderProjTable()"><option value="">All SLA</option><option>On Track</option><option>1-7 Days Overdue</option><option>Overdue</option><option>Not Started</option></select>
+    </div>
+    <div class="tw">
+      <table id="proj-t"><thead><tr><th>Project Name</th><th>Owner</th><th>Requestor</th><th>Status</th><th>Start</th><th>Target</th><th>Ended</th><th class="nm">Days Late</th><th>SLA</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- AUTOMATIONS -->
+<div id="panel-automations" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">BIT Automation Team</div>
+      <div class="pg-title">Automation <em>ROI Tracker</em></div>
+      <div class="pg-sub" id="auto-sub"></div>
+    </div>
+  </div>
+  <div id="auto-insight" class="insight"></div>
+  <div class="kpi-grid" id="auto-kpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#f5a623"></span>Time Savings vs Maintenance — by Week</div>
+      <div style="height:230px"><canvas id="auto-c-week"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#ea580c"></span>By Person-in-Charge</div>
+      <div style="height:230px"><canvas id="auto-c-person"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-hd"><span class="bar" style="--cc:#f5a623"></span>Top Automations by Time Saved</div>
+    <div class="tw">
+      <table id="auto-t"><thead><tr><th>Automation Name</th><th class="nm">Weeks Run</th><th class="nm">Maintenance (h)</th><th class="nm">Manual Equiv (h)</th><th class="nm">Time Saved (h)</th><th class="nm">ROI %</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- SUPPORT -->
+<div id="panel-support" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">IT Department</div>
+      <div class="pg-title">IT Support <em>Metrics</em></div>
+      <div class="pg-sub" id="sup-sub"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="sup-kpis"></div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#ea580c"></span>SD Requests by Week</div>
+      <div style="height:230px"><canvas id="sup-c-req"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#16a34a"></span>Security Score vs Target</div>
+      <div style="height:230px"><canvas id="sup-c-sec"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-hd"><span class="bar" style="--cc:var(--text3)"></span>Weekly Detail</div>
+    <div class="tw">
+      <table id="sup-t"><thead><tr><th class="nm">Week</th><th class="nm">SD Requests</th><th class="nm">Security Score</th><th class="nm">Target</th><th class="nm">Incidents</th><th>SLA</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- DEXIQ -->
+<div id="panel-dexiq" class="panel">
+  <div class="pg-head">
+    <div>
+      <div class="sec-tag">DexIQ Platform</div>
+      <div class="pg-title">DexIQ <em>Board</em></div>
+      <div class="pg-sub" id="dexiq-sub"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="dexiq-kpis"></div>
+  <div class="g3">
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Status Distribution</div>
+      <div style="height:200px"><canvas id="dexiq-c-status"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#dc2626"></span>Priority Distribution</div>
+      <div style="height:200px"><canvas id="dexiq-c-priority"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar" style="--cc:#ea580c"></span>Issue Type Split</div>
+      <div style="height:200px"><canvas id="dexiq-c-type"></canvas></div>
+    </div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Sprint Progress</div>
+      <div style="height:240px"><canvas id="dexiq-c-sprint"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-hd"><span class="bar grad"></span>Top Assignees</div>
+      <div class="tw"><table id="dexiq-t-assignee"><thead><tr><th>Assignee</th><th class="nm">Tickets</th><th class="nm">Live</th><th class="nm">Bugs</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<script>
+// Register datalabels plugin globally
+Chart.register(ChartDataLabels);
+
+const GITHUB_PAGES_BASE = 'https://edzarquiza.github.io/dexiq-dashboard';
+const AUTO_REFRESH_MS = 30_000;
+
+let DATA=null, refreshTimer=null, initialized=false;
+let bitSprint='All', webBoard='All', projOwner='All';
+const CH={};
+
+// ── BRAND COLORS ──
+const TEAL='#00b4a8', BLUE='#1e4fd8', YELLOW='#f5a623', GREEN='#16a34a',
+      RED='#dc2626', ORANGE='#ea580c', PURPLE='#7c3aed', GREY='#e3e5e8';
+const GRAD_COLORS=['#00b4a8','#0e82c0','#1e4fd8']; // teal→blue gradient stops
+
+// ── CHART DEFAULTS ──
+const CD={
+  color:'#9ca3af',
+  plugins:{
+    datalabels:{display:false}, // off by default, enabled per chart
+    legend:{labels:{color:'#6b7280',font:{family:'Figtree',size:11.5,weight:'600'},boxWidth:10,padding:14}},
+    tooltip:{backgroundColor:'#fff',borderColor:'#e3e5e8',borderWidth:1,
+      titleColor:'#0f1117',bodyColor:'#4b5563',
+      titleFont:{family:'Figtree',weight:'700',size:12},
+      bodyFont:{family:'DM Mono',size:11.5},padding:10,cornerRadius:8,
+      boxShadow:'0 4px 12px rgba(0,0,0,.08)'}
+  },
+  scales:{
+    x:{ticks:{color:'#9ca3af',font:{family:'Figtree',size:11,weight:'600'}},grid:{color:'rgba(0,0,0,.04)'},border:{color:'transparent'}},
+    y:{ticks:{color:'#9ca3af',font:{family:'DM Mono',size:11}},grid:{color:'rgba(0,0,0,.04)'},border:{color:'transparent'}}
+  }
+};
+
+// ── DATA LABEL CONFIG for bar charts ──
+function barLabels(color='#fff',size=10){
+  return{display:true,color,anchor:'end',align:'end',offset:2,font:{family:'DM Mono',size,weight:'600'},formatter:v=>v>0?v.toFixed(1):''};
+}
+function barLabelsInt(color='#fff',size=10){
+  return{display:true,color,anchor:'end',align:'end',offset:2,font:{family:'DM Mono',size,weight:'600'},formatter:v=>v>0?v:''};
+}
+// For inside stacked bars
+function stackLabels(){
+  return{display:ctx=>ctx.dataset.data[ctx.dataIndex]>0,color:'#fff',anchor:'center',align:'center',font:{family:'DM Mono',size:10,weight:'600'},formatter:v=>v>0?v:''};
+}
+
+function mkChart(id,cfg){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id),cfg);return CH[id]}
+const fh=v=>(+v||0).toFixed(1);
+const fp=v=>(+v||0).toFixed(1)+'%';
+function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]} ${y}`}
+function sln(s){return s.replace(/DexIQ Sprint /,'S').replace(/Dexterous Group Sprint /,'DG-S').replace(/MRKTNG Sprint /,'MKT-S').replace(/Energin Sprint /,'EN-S').replace(/DA Sprint /,'DA-')}
+function spN(s){const m=s.match(/(\d+)$/);return m?+m[1]:999}
+
+function chip(s){
+  const m={'Done':'c-done','In Progress':'c-prog','To Do':'c-todo','QA/QC':'c-qa',
+           'LIVE (Deployed on Prod)':'c-live','Backlog':'c-back','QA-QC (Deployed on Stg)':'c-qa',
+           'Selected for Development':'c-prog','On Track':'c-on','Overdue':'c-ov',
+           '1-7 Days Overdue':'c-mild','Not Started':'c-ns','Ongoing':'c-ongoing',
+           'Completed (No Estimate)':'c-done','High':'c-high','Medium':'c-med','Low':'c-low','Highest':'c-high'};
+  return`<span class="chip ${m[s]||'c-todo'}">${s}</span>`;
+}
+function dlCell(d){
+  if(d===null||d===undefined)return'<span class="dl-z">—</span>';
+  const n=+d;
+  if(n>0)return`<span class="dl-pos">+${n}d</span>`;
+  if(n<0)return`<span class="dl-neg">${n}d</span>`;
+  return`<span class="dl-z">0d</span>`;
+}
+function popSel(id,vals,cur){
+  const s=document.getElementById(id);if(!s)return;
+  while(s.options.length>1)s.remove(1);
+  vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)});
+  if(cur)s.value=cur;
+}
+
+// ── LIVE FETCH ──
+async function fetchData(silent=false){
+  setLS('syncing');
+  try{
+    const r=await fetch(GITHUB_PAGES_BASE+'/dashboard_data.json?_='+Date.now(),{cache:'no-store'});
+    if(r.status===404)throw new Error('dashboard_data.json not found — has the sync script run yet?');
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const nd=await r.json();
+    const changed=DATA&&JSON.stringify(DATA.bit.kpi)!==JSON.stringify(nd.bit.kpi);
+    DATA=nd;
+    if(!initialized){
+      document.getElementById('loading').style.display='none';
+      document.getElementById('app').style.display='block';
+      initAll();initialized=true;
+    } else if(changed){
+      refreshAll();
+      if(!silent)toast('✅ Dashboard refreshed with new data');
+    }
+    setLS('live',DATA.refreshTime||'');
+    return true;
+  } catch(e){
+    setLS('error');
+    if(!initialized){
+      document.getElementById('loading').innerHTML=`<div style="text-align:center;max-width:420px;padding:24px;line-height:1.8"><div style="font-size:28px;margin-bottom:12px">⚠️</div><strong style="font-size:15px">Could not load dashboard data</strong><br><span style="color:#6b7280;font-size:12.5px">${e.message}</span><br><br><button onclick="fetchData()" style="padding:9px 20px;background:linear-gradient(90deg,#00b4a8,#1e4fd8);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:Figtree">Retry</button></div>`;
+    } else toast('⚠️ Refresh failed — '+e.message,true);
+    return false;
+  }
+}
+function setLS(state,t=''){
+  const dot=document.getElementById('ldot'),lbl=document.getElementById('llabel'),lt=document.getElementById('ltime');
+  dot.className='ldot';
+  if(state==='live'){dot.style.background=GREEN;lbl.textContent='Live';}
+  if(state==='syncing'){dot.classList.add('syncing');dot.style.background='';lbl.textContent='Syncing…';}
+  if(state==='error'){dot.classList.add('error');dot.style.background='';lbl.textContent='Error';}
+  lt.textContent=t?`· ${t}`:'';
+}
+function manualRefresh(){fetchData(false)}
+let toastT;
+function toast(msg,err=false){
+  const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(err?' err':'');
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500);
+}
+function tab(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('on');
+}
+function initAll(){initOverview();initBIT();initWEB();initProj();initAuto();initSupport();initDexIQ();}
+function refreshAll(){bitSprint='All';webBoard='All';projOwner='All';initAll();}
+
+function renderKpis(id,cards){
+  document.getElementById(id).innerHTML=cards.map(k=>`
+    <div class="kpi" style="--kc:${k.c}">
+      <div class="kpi-l">${k.l}</div>
+      <div class="kpi-v">${k.v}</div>
+      <div class="kpi-u">${k.u}</div>
+      ${k.trend?`<div class="trend ${k.trend.cls}">${k.trend.txt}</div>`:''}
+      <div class="kpi-ic">${k.ic}</div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// OVERVIEW
+// ══════════════════════════════════════════════════════
+function initOverview(){
+  const d=DATA;
+  document.getElementById('ov-sub').textContent=`Last updated ${d.refreshDate} at ${d.refreshTime} · Source: SharePoint`;
+  renderKpis('ov-kpis',[
+    {l:'BIT Tickets',v:d.bit.kpi.totalTickets,u:`${d.bit.kpi.doneRate}% done`,ic:'📋',c:TEAL},
+    {l:'Web Tickets',v:d.web.kpi.totalTickets,u:`${d.web.kpi.doneRate}% done`,ic:'🌐',c:PURPLE},
+    {l:'Projects',v:d.projects.kpi.total,u:`${d.projects.kpi.done} done · ${d.projects.kpi.ongoing} ongoing`,ic:'🚀',c:GREEN},
+    {l:'Automations',v:d.automations.kpi.totalAutomations,u:`${d.automations.kpi.totalSavings}h saved`,ic:'⚡',c:YELLOW},
+    {l:'Hours Saved',v:fh(d.automations.kpi.totalSavings),u:`${d.automations.kpi.savingsRate}% ROI`,ic:'💰',c:GREEN,trend:{cls:'up',txt:`↑ vs ${fh(d.automations.kpi.totalMaintenance)}h maintenance`}},
+    {l:'SLA Compliance',v:fp(d.support.kpi.slaCompliance),u:'IT support SLA',ic:'🛡️',c:GREEN},
+    {l:'Security Score',v:(d.support.kpi.avgSecurityScore*100).toFixed(1)+'%',u:`Target: ${(d.support.kpi.targetSecurityScore*100).toFixed(0)}%`,ic:'🔒',c:d.support.kpi.avgSecurityScore>=d.support.kpi.targetSecurityScore?GREEN:RED},
+    {l:'DexIQ Live',v:d.dexiq.kpi.live,u:`of ${d.dexiq.kpi.totalTickets} total`,ic:'🟢',c:TEAL},
+  ]);
+
+  // Status donuts
+  const sc={Done:GREEN,'In Progress':BLUE,'To Do':GREY,'QA/QC':PURPLE};
+  ['bit','web'].forEach((k,i)=>{
+    const sd=DATA[k].statusDist;
+    mkChart(['ov-bit-status','ov-web-status'][i],{type:'doughnut',
+      data:{labels:sd.map(s=>s.Status||s.status),datasets:[{data:sd.map(s=>s.count),backgroundColor:sd.map(s=>sc[s.Status||s.status]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:5}]},
+      options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+  });
+  const pd=DATA.projects.slaDist;
+  const pc={'On Track':GREEN,'Overdue':RED,'1-7 Days Overdue':YELLOW,'Not Started':GREY};
+  mkChart('ov-proj-sla',{type:'doughnut',
+    data:{labels:pd.map(s=>s.SLA_Status),datasets:[{data:pd.map(s=>s.count),backgroundColor:pd.map(s=>pc[s.SLA_Status]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:5}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+
+  // Auto savings by week
+  const aw=DATA.automations.byWeek;
+  mkChart('ov-auto-week',{type:'bar',data:{
+    labels:aw.map(w=>`W${w.Week}`),
+    datasets:[
+      {label:'Time Saved (h)',data:aw.map(w=>+w.savings||0),backgroundColor:TEAL,borderRadius:5,datalabels:barLabels('#fff',9)},
+      {label:'Maintenance (h)',data:aw.map(w=>+w.maintenance||0),backgroundColor:YELLOW,borderRadius:5,datalabels:barLabels('#fff',9)},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,...CD,plugins:{...CD.plugins,datalabels:{display:false}}}});
+
+  // Support by week
+  const sw=DATA.support.byWeek;
+  mkChart('ov-support-week',{type:'line',data:{
+    labels:sw.map(w=>`W${w['Week No']}`),
+    datasets:[{label:'SD Requests',data:sw.map(w=>w['SD Request']),borderColor:ORANGE,backgroundColor:'rgba(234,88,12,.08)',fill:true,tension:.4,pointRadius:4,pointBackgroundColor:ORANGE,pointBorderColor:'#fff',pointBorderWidth:2}]
+  },options:{responsive:true,maintainAspectRatio:false,...CD,plugins:{...CD.plugins,datalabels:{display:true,color:ORANGE,anchor:'end',align:'top',offset:2,font:{family:'DM Mono',size:9,weight:'600'},formatter:v=>v}}}});
+
+  // Security gauge
+  const avgSec=DATA.support.kpi.avgSecurityScore, tgtSec=DATA.support.kpi.targetSecurityScore;
+  const pct=Math.min(avgSec/1*100,100);
+  document.getElementById('ov-security').innerHTML=`
+    <div style="display:flex;align-items:center;gap:14px;padding:8px 0 12px">
+      <div class="gauge-score" style="color:${avgSec>=tgtSec?GREEN:RED}">${(avgSec*100).toFixed(1)}%</div>
+      <div style="flex:1">
+        <div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:4px">Avg Security Score</div>
+        <div class="gauge-bar"><div class="gauge-fill" style="width:${pct}%;background:${avgSec>=tgtSec?GREEN:RED}"></div></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)">Target: ${(tgtSec*100).toFixed(0)}% · ${avgSec>=tgtSec?'✅ Above target':'⚠️ Below target'}</div>
+      </div>
+    </div>
+    ${DATA.support.byWeek.map(w=>`
+      <div class="mrow">
+        <span class="mrow-l">Week ${w['Week No']}</span>
+        <span class="mrow-r" style="color:${w['Security Score']>=tgtSec?GREEN:RED}">${(w['Security Score']*100).toFixed(2)}%</span>
+      </div>`).join('')}`;
+
+  ['Web','Automation'].forEach((team,i)=>{
+    const el=document.getElementById(['ov-monthly-web','ov-monthly-auto'][i]);
+    const rows=DATA.monthly.byTeam[team]||[];
+    el.innerHTML=rows.map(r=>`<div class="mrow"><span class="mrow-l" title="${r.Metrics}">${r.Metrics}</span><span class="mrow-r">${r.Status}</span></div>`).join('')||'<div class="empty">No data</div>';
+  });
+}
+
+// ══════════════════════════════════════════════════════
+// BIT
+// ══════════════════════════════════════════════════════
+function initBIT(){
+  const d=DATA.bit;
+  document.getElementById('bit-sub').textContent=`DA Project · ${d.kpi.sprints} Sprints · ${[...new Set(d.issues.map(i=>i.assignee).filter(Boolean))].length} Team Members`;
+  const noEst=d.kpi.noEstimate, ov=d.kpi.overdue;
+  document.getElementById('bit-insight').innerHTML=
+    `<strong>${d.kpi.totalTickets}</strong> total tickets · <strong>${d.kpi.doneRate}%</strong> completion rate · <strong>${d.kpi.avgEff}%</strong> avg efficiency`+
+    (noEst>0?` · <strong style="color:var(--orange)">${noEst} tickets</strong> missing time estimates`:'')+
+    (ov>0?` · <strong style="color:var(--red)">${ov} overdue</strong> (benchmark flagged)`:'');
+  renderKpis('bit-kpis',[
+    {l:'Time Spent',v:fh(d.kpi.totalTS),u:'hours logged',ic:'⏱️',c:TEAL},
+    {l:'Estimated',v:fh(d.kpi.totalOE),u:'hours estimated',ic:'📋',c:BLUE},
+    {l:'Avg Efficiency',v:fp(d.kpi.avgEff),u:'actual vs estimate',ic:'⚡',c:d.kpi.avgEff>=100?GREEN:YELLOW,trend:{cls:d.kpi.avgEff>=100?'up':'neutral',txt:d.kpi.avgEff>=100?'On budget':'Under estimate'}},
+    {l:'Done Rate',v:fp(d.kpi.doneRate),u:'tickets completed',ic:'✅',c:GREEN},
+    {l:'Total Tickets',v:d.kpi.totalTickets,u:'issues tracked',ic:'🎫',c:PURPLE},
+    {l:'No Estimate',v:d.kpi.noEstimate,u:'missing time data',ic:'⚠️',c:d.kpi.noEstimate>10?RED:YELLOW},
+    {l:'Overdue',v:d.kpi.overdue,u:'benchmark flagged',ic:'🔴',c:d.kpi.overdue>0?RED:GREEN},
+    {l:'Sprints',v:d.kpi.sprints,u:'DA project sprints',ic:'🏃',c:ORANGE},
+  ]);
+  const sprints=['All',...d.bySprint.map(s=>s.Sprint)];
+  document.getElementById('bit-sf').innerHTML=sprints.map(s=>`<button class="fb ${s===bitSprint?'on':''}" onclick="setBitSprint('${s}',this)">${s}</button>`).join('');
+  popSel('bit-fa',[...new Set(d.issues.map(i=>i.assignee).filter(Boolean))]);
+  popSel('bit-fs',[...new Set(d.issues.map(i=>i.status).filter(Boolean))]);
+  popSel('bit-fp',[...new Set(d.issues.map(i=>i.parent).filter(Boolean))]);
+  renderBitCharts();renderBitAssigneeTable();renderBitBenchmark();renderBitTable();
+}
+
+function setBitSprint(s,btn){
+  bitSprint=s;
+  document.querySelectorAll('#bit-sf .fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderBitCharts();renderBitAssigneeTable();renderBitTable();
+}
+
+function getBitIssues(){
+  let is=DATA.bit.issues;
+  if(bitSprint!=='All')is=is.filter(i=>i.sprint===bitSprint);
+  const a=document.getElementById('bit-fa')?.value, s=document.getElementById('bit-fs')?.value, p=document.getElementById('bit-fp')?.value;
+  if(a)is=is.filter(i=>i.assignee===a);
+  if(s)is=is.filter(i=>i.status===s);
+  if(p)is=is.filter(i=>i.parent===p);
+  return is;
+}
+
+function renderBitCharts(){
+  const is=getBitIssues();
+  const assignees=[...new Set(is.map(i=>i.assignee).filter(Boolean))];
+  const tsA=assignees.map(a=>+is.filter(i=>i.assignee===a).reduce((s,i)=>s+(+i.ts||0),0).toFixed(1));
+  const oeA=assignees.map(a=>+is.filter(i=>i.assignee===a).reduce((s,i)=>s+(+i.oe||0),0).toFixed(1));
+
+  mkChart('bit-c-assignee',{type:'bar',data:{
+    labels:assignees.map(a=>a.split(' ')[0]),
+    datasets:[
+      {label:'Time Spent (h)',data:tsA,backgroundColor:TEAL,borderRadius:6,datalabels:barLabels('#fff')},
+      {label:'Estimate (h)',data:oeA,backgroundColor:YELLOW,borderRadius:6,datalabels:barLabels('#fff')}
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+
+  const sm={};is.forEach(i=>{sm[i.status]=(sm[i.status]||0)+1});
+  const sc={Done:GREEN,'In Progress':BLUE,'To Do':GREY,'QA/QC':PURPLE};
+  mkChart('bit-c-status',{type:'doughnut',data:{labels:Object.keys(sm),datasets:[{data:Object.values(sm),backgroundColor:Object.keys(sm).map(s=>sc[s]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+
+  const sp=bitSprint==='All'?DATA.bit.bySprint:DATA.bit.bySprint.filter(s=>s.Sprint===bitSprint);
+  mkChart('bit-c-sprint',{type:'bar',data:{
+    labels:sp.map(s=>sln(s.Sprint)),
+    datasets:[
+      {label:'Done',data:sp.map(s=>s.done),backgroundColor:GREEN,borderRadius:4,datalabels:stackLabels()},
+      {label:'In Progress',data:sp.map(s=>s.in_progress),backgroundColor:BLUE,borderRadius:4,datalabels:stackLabels()},
+      {label:'QA/QC',data:sp.map(s=>s.qa),backgroundColor:PURPLE,borderRadius:4,datalabels:stackLabels()},
+      {label:'To Do',data:sp.map(s=>s.todo),backgroundColor:GREY,borderRadius:4,datalabels:stackLabels()},
+    ]
+  },options:{responsive:true,maintainAspectRatio:false,...CD,scales:{...CD.scales,x:{...CD.scales.x,stacked:true},y:{...CD.scales.y,stacked:true}}}});
+
+  const pp=DATA.bit.byParent.slice(0,8);
+  mkChart('bit-c-parent',{type:'bar',data:{
+    labels:pp.map(p=>{const n=p['Parent summary']||'—';return n.length>22?n.slice(0,20)+'…':n}),
+    datasets:[{label:'Tickets',data:pp.map(p=>p.tickets),backgroundColor:BLUE,borderRadius:5,datalabels:barLabelsInt('#fff')}]
+  },options:{responsive:true,maintainAspectRatio:false,...CD,indexAxis:'y',layout:{padding:{right:30}}}});
+}
+
+function renderBitAssigneeTable(){
+  const is=getBitIssues();
+  const assignees=[...new Set(is.map(i=>i.assignee).filter(Boolean))];
+  document.querySelector('#bit-t-assignee tbody').innerHTML=assignees.map(a=>{
+    const rows=is.filter(i=>i.assignee===a);
+    const ts=rows.reduce((s,i)=>s+(+i.ts||0),0), oe=rows.reduce((s,i)=>s+(+i.oe||0),0);
+    const eff=ts>0?(oe/ts*100).toFixed(1):'—';
+    return`<tr><td style="font-weight:600">${a}</td><td class="nm">${rows.length}</td><td class="nm">${fh(ts)}</td><td class="nm">${fh(oe)}</td>
+    <td class="nm" style="color:${oe-ts>=0?GREEN:RED};font-weight:600">${fh(oe-ts)}</td>
+    <td class="nm" style="color:${+eff>=100?GREEN:YELLOW};font-weight:600">${eff}%</td>
+    <td class="nm">${rows.filter(i=>i.status==='Done').length}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="empty">No data</td></tr>';
+}
+
+function renderBitBenchmark(){
+  const bd=DATA.bit.benchmarkDist;
+  const color={'Overdue':RED,'In Progress':BLUE,'Completed (No Estimate)':GREY,'Not Started':GREY};
+  const total=bd.reduce((s,b)=>s+b.count,0);
+  document.getElementById('bit-benchmark').innerHTML=bd.map(b=>`
+    <div class="mrow">
+      <span class="mrow-l">${b.status||b.Benchmark}</span>
+      <span class="mrow-r" style="color:${color[b.status||b.Benchmark]||TEAL};font-weight:700">${b.count} <span style="color:var(--text3);font-weight:400">(${((b.count/total)*100).toFixed(0)}%)</span></span>
+    </div>
+    <div class="pbar"><div class="pfill" style="width:${(b.count/total*100).toFixed(1)}%;background:${color[b.status||b.Benchmark]||TEAL}"></div></div>`).join('')||'<div class="empty">No benchmark data</div>';
+}
+
+function renderBitTable(){
+  const is=getBitIssues();
+  document.querySelector('#bit-t-issues tbody').innerHTML=is.map(i=>`<tr>
+    <td><code class="k">${i.key}</code></td>
+    <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)" title="${i.summary||''}">${i.summary||''}</td>
+    <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:var(--text3)">${i.parent||'—'}</td>
+    <td style="font-size:11px;color:var(--text3)">${sln(i.sprint||'')}</td>
+    <td style="font-size:12px;font-weight:600">${(i.assignee||'').split(' ')[0]}</td>
+    <td><span class="tag">${i.type||''}</span></td>
+    <td>${chip(i.status)}</td>
+    <td class="nm">${fh(i.ts)}</td><td class="nm">${fh(i.oe)}</td>
+    <td class="nm" style="color:${(+i.variance||0)>=0?GREEN:RED};font-weight:600">${fh(i.variance)}</td>
+    <td class="nm" style="color:${(+i.eff||0)>=100?GREEN:YELLOW};font-weight:600">${fp(i.eff)}</td>
+    <td>${i.benchmark?chip(i.benchmark):'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+  </tr>`).join('')||'<tr><td colspan="12" class="empty">No issues match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// WEB
+// ══════════════════════════════════════════════════════
+function initWEB(){
+  const d=DATA.web;
+  document.getElementById('web-sub').textContent=`WD Project · ${d.kpi.activeBoards} Boards · ${d.kpi.activeSprints} Sprints`;
+  renderKpis('web-kpis',[
+    {l:'Time Spent',v:fh(d.kpi.totalTS),u:'hours logged',ic:'⏱️',c:PURPLE},
+    {l:'Estimated',v:fh(d.kpi.totalOE),u:'hours estimated',ic:'📋',c:TEAL},
+    {l:'Avg Efficiency',v:fp(d.kpi.avgEff),u:'actual vs estimate',ic:'⚡',c:d.kpi.avgEff>=100?GREEN:YELLOW},
+    {l:'Done Rate',v:fp(d.kpi.doneRate),u:'tickets completed',ic:'✅',c:GREEN},
+    {l:'Total Tickets',v:d.kpi.totalTickets,u:'issues tracked',ic:'🎫',c:PURPLE},
+    {l:'No Estimate',v:d.kpi.noEstimate,u:'missing time data',ic:'⚠️',c:d.kpi.noEstimate>20?RED:YELLOW},
+    {l:'Active Boards',v:d.kpi.activeBoards,u:'sprint boards',ic:'🗂️',c:ORANGE},
+    {l:'Sprints',v:d.kpi.activeSprints,u:'across all boards',ic:'🏃',c:BLUE},
+  ]);
+  document.getElementById('web-bf').innerHTML=['All',...DATA.web.byBoard.map(b=>b.Board)].map(b=>`<button class="fb ${b===webBoard?'on':''}" onclick="setWebBoard('${b}',this)">${b}</button>`).join('');
+  popSel('web-fb2',[...new Set(DATA.web.issues.map(i=>i.board).filter(Boolean))]);
+  popSel('web-fs',[...new Set(DATA.web.issues.map(i=>i.status).filter(Boolean))]);
+  popSel('web-fp',[...new Set(DATA.web.issues.map(i=>i.priority).filter(p=>p&&!p.startsWith('WDD')))]);
+  renderWebCharts();renderWebBoardTable();renderWebTable();
+}
+function setWebBoard(b,btn){
+  webBoard=b;document.querySelectorAll('#web-bf .fb').forEach(x=>x.classList.remove('on'));btn.classList.add('on');
+  if(b!=='All')document.getElementById('web-fb2').value=b; else document.getElementById('web-fb2').value='';
+  renderWebCharts();renderWebBoardTable();renderWebTable();
+}
+function getWebIssues(){
+  let is=DATA.web.issues;
+  if(webBoard!=='All')is=is.filter(i=>i.board===webBoard);
+  const b=document.getElementById('web-fb2')?.value,s=document.getElementById('web-fs')?.value,p=document.getElementById('web-fp')?.value;
+  if(b)is=is.filter(i=>i.board===b);if(s)is=is.filter(i=>i.status===s);if(p)is=is.filter(i=>i.priority===p);
+  return is;
+}
+function renderWebCharts(){
+  const is=getWebIssues();
+  const bc={'DexIQ':TEAL,'Dexterous Group':BLUE,'Marketing':YELLOW,'Energin':PURPLE};
+  const boards=webBoard==='All'?DATA.web.byBoard.map(b=>b.Board):[webBoard];
+  const tsB=boards.map(b=>+is.filter(i=>i.board===b).reduce((s,i)=>s+(+i.ts||0),0).toFixed(1));
+  const oeB=boards.map(b=>+is.filter(i=>i.board===b).reduce((s,i)=>s+(+i.oe||0),0).toFixed(1));
+  mkChart('web-c-board',{type:'bar',data:{labels:boards,datasets:[{label:'Time Spent (h)',data:tsB,backgroundColor:boards.map(b=>bc[b]||PURPLE),borderRadius:6,datalabels:barLabels('#fff')},{label:'Estimate (h)',data:oeB,backgroundColor:YELLOW,borderRadius:6,datalabels:barLabels('#fff')}]},options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+
+  const sm={};is.forEach(i=>{sm[i.status]=(sm[i.status]||0)+1});
+  const sc={Done:GREEN,'In Progress':BLUE,'To Do':GREY};
+  mkChart('web-c-status',{type:'doughnut',data:{labels:Object.keys(sm),datasets:[{data:Object.values(sm),backgroundColor:Object.keys(sm).map(s=>sc[s]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+
+  let sp=DATA.web.bySprint;if(webBoard!=='All')sp=sp.filter(s=>s.Board===webBoard);sp=sp.slice(-14);
+  mkChart('web-c-sprint',{type:'bar',data:{labels:sp.map(s=>sln(s.Sprint)),datasets:[{label:'Done',data:sp.map(s=>s.done),backgroundColor:GREEN,borderRadius:4,datalabels:stackLabels()},{label:'In Progress',data:sp.map(s=>s.in_progress),backgroundColor:BLUE,borderRadius:4,datalabels:stackLabels()},{label:'To Do',data:sp.map(s=>s.todo),backgroundColor:GREY,borderRadius:4,datalabels:stackLabels()}]},options:{responsive:true,maintainAspectRatio:false,...CD,scales:{...CD.scales,x:{...CD.scales.x,stacked:true,ticks:{...CD.scales.x.ticks,maxRotation:45}},y:{...CD.scales.y,stacked:true}}}});
+}
+function renderWebBoardTable(){
+  const is=getWebIssues();
+  const boards=webBoard==='All'?[...new Set(is.map(i=>i.board).filter(Boolean))]:[webBoard];
+  document.querySelector('#web-t-board tbody').innerHTML=boards.map(b=>{
+    const rows=is.filter(i=>i.board===b);
+    const ts=rows.reduce((s,i)=>s+(+i.ts||0),0),oe=rows.reduce((s,i)=>s+(+i.oe||0),0);
+    const eff=ts>0?(oe/ts*100).toFixed(1):'—';
+    return`<tr><td style="font-weight:600">${b}</td><td class="nm">${rows.length}</td><td class="nm">${fh(ts)}</td><td class="nm">${fh(oe)}</td><td class="nm" style="color:${oe-ts>=0?GREEN:RED};font-weight:600">${fh(oe-ts)}</td><td class="nm" style="color:${+eff>=100?GREEN:YELLOW};font-weight:600">${eff}%</td><td class="nm">${rows.filter(i=>i.status==='Done').length}</td></tr>`;
+  }).join('')||'<tr><td colspan="7" class="empty">No data</td></tr>';
+}
+function renderWebTable(){
+  const is=getWebIssues();
+  const pc={'High':RED,'Medium':YELLOW,'Low':GREEN};
+  document.querySelector('#web-t-issues tbody').innerHTML=is.map(i=>`<tr>
+    <td><code class="k">${i.key}</code></td>
+    <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)" title="${i.summary||''}">${i.summary||''}</td>
+    <td style="font-size:11px;color:var(--text3)">${sln(i.sprint||'')}</td>
+    <td style="font-size:12px;color:var(--text2)">${i.board||'—'}</td>
+    <td>${chip(i.status)}</td>
+    <td style="font-size:12px;font-weight:700;color:${pc[i.priority]||'var(--text3)'}">${i.priority||'—'}</td>
+    <td class="nm">${fh(i.ts)}</td><td class="nm">${fh(i.oe)}</td>
+    <td class="nm" style="color:${(+i.variance||0)>=0?GREEN:RED};font-weight:600">${fh(i.variance)}</td>
+    <td>${i.benchmark?chip(i.benchmark):'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+  </tr>`).join('')||'<tr><td colspan="10" class="empty">No issues match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// PROJECTS
+// ══════════════════════════════════════════════════════
+function initProj(){
+  const d=DATA.projects;
+  document.getElementById('proj-sub').textContent=`BIT Automation Projects · Owners: ${d.ownerDist.map(o=>o.Project_Owner).join(', ')}`;
+  renderKpis('proj-kpis',[
+    {l:'Total',v:d.kpi.total,u:'automation projects',ic:'📁',c:TEAL},
+    {l:'On Track',v:d.kpi.onTrack,u:'within SLA',ic:'✅',c:GREEN},
+    {l:'Done',v:d.kpi.done,u:'delivered',ic:'🎯',c:BLUE},
+    {l:'Ongoing',v:d.kpi.ongoing,u:'in progress',ic:'🔄',c:YELLOW},
+    {l:'Overdue',v:d.kpi.overdue,u:'past target date',ic:'⚠️',c:d.kpi.overdue>0?RED:GREEN},
+    {l:'Not Started',v:d.kpi.notStarted,u:'pending kickoff',ic:'⏳',c:PURPLE},
+  ]);
+  document.getElementById('proj-of').innerHTML=['All',...d.ownerDist.map(o=>o.Project_Owner)].map(o=>`<button class="fb ${o===projOwner?'on':''}" onclick="setProjOwner('${o}',this)">${o}</button>`).join('');
+  renderProjCharts();renderProjTable();
+}
+function setProjOwner(o,btn){projOwner=o;document.querySelectorAll('#proj-of .fb').forEach(x=>x.classList.remove('on'));btn.classList.add('on');renderProjCharts();renderProjTable();}
+function getProjList(){
+  let ps=DATA.projects.list;if(projOwner!=='All')ps=ps.filter(p=>p.owner===projOwner);
+  const s=document.getElementById('proj-fs')?.value,sla=document.getElementById('proj-fsla')?.value;
+  if(s)ps=ps.filter(p=>p.status===s);if(sla)ps=ps.filter(p=>p.sla===sla);return ps;
+}
+function renderProjCharts(){
+  const ps=getProjList();
+  const sm={};ps.forEach(p=>{sm[p.sla]=(sm[p.sla]||0)+1});
+  const sc={'On Track':GREEN,'Overdue':RED,'1-7 Days Overdue':YELLOW,'Not Started':GREY};
+  mkChart('proj-c-sla',{type:'doughnut',data:{labels:Object.keys(sm),datasets:[{data:Object.values(sm),backgroundColor:Object.keys(sm).map(s=>sc[s]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${v} (${Math.round(v/t*100)}%)`:''}}}}});
+  const fo=projOwner==='All'?DATA.projects.ownerDist:DATA.projects.ownerDist.filter(o=>o.Project_Owner===projOwner);
+  mkChart('proj-c-owner',{type:'bar',data:{labels:fo.map(o=>o.Project_Owner),datasets:[{label:'Done',data:fo.map(o=>o.done),backgroundColor:GREEN,borderRadius:6,datalabels:barLabelsInt('#fff')},{label:'Ongoing',data:fo.map(o=>o.ongoing),backgroundColor:BLUE,borderRadius:6,datalabels:barLabelsInt('#fff')},{label:'Not Started',data:fo.map(o=>o.not_started),backgroundColor:GREY,borderRadius:6,datalabels:barLabelsInt('#fff')}]},options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+}
+function renderProjTable(){
+  const ps=getProjList();
+  document.querySelector('#proj-t tbody').innerHTML=ps.map(p=>`<tr>
+    <td style="font-weight:600">${p.name}</td>
+    <td><code class="k">${p.owner}</code></td>
+    <td style="font-size:12px;color:var(--text2)">${p.requestor}</td>
+    <td>${chip(p.status)}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtDate(p.start)}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtDate(p.target)}</td>
+    <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${fmtDate(p.end)}</td>
+    <td class="nm">${dlCell(p.days_late)}</td>
+    <td>${chip(p.sla)}</td>
+  </tr>`).join('')||'<tr><td colspan="9" class="empty">No projects match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// AUTOMATIONS
+// ══════════════════════════════════════════════════════
+function initAuto(){
+  const d=DATA.automations;
+  document.getElementById('auto-sub').textContent=`${d.kpi.weeks} weeks tracked · ${d.kpi.totalAutomations} unique automations`;
+  document.getElementById('auto-insight').innerHTML=`Automations saved <strong>${fh(d.kpi.totalSavings)}h</strong> of manual work vs <strong>${fh(d.kpi.totalMaintenance)}h</strong> maintenance — <strong style="color:var(--green)">${d.kpi.savingsRate}% ROI</strong>. Equivalent manual effort: <strong>${fh(d.kpi.totalManualEquiv)}h</strong>.`;
+  renderKpis('auto-kpis',[
+    {l:'Total Automations',v:d.kpi.totalAutomations,u:'unique processes',ic:'🤖',c:YELLOW},
+    {l:'Total Savings',v:fh(d.kpi.totalSavings),u:'hours saved',ic:'💰',c:GREEN,trend:{cls:'up',txt:`↑ ${d.kpi.savingsRate}% ROI`}},
+    {l:'Manual Equivalent',v:fh(d.kpi.totalManualEquiv),u:'hours if done manually',ic:'👤',c:TEAL},
+    {l:'Maintenance Cost',v:fh(d.kpi.totalMaintenance),u:'hours to maintain',ic:'🔧',c:ORANGE},
+    {l:'Weeks Tracked',v:d.kpi.weeks,u:'data points',ic:'📅',c:PURPLE},
+    {l:'ROI Rate',v:fp(d.kpi.savingsRate),u:'savings efficiency',ic:'📈',c:d.kpi.savingsRate>=80?GREEN:YELLOW},
+  ]);
+  const aw=d.byWeek;
+  mkChart('auto-c-week',{type:'bar',data:{labels:aw.map(w=>`W${w.Week}`),datasets:[
+    {label:'Time Saved (h)',data:aw.map(w=>+fh(+w.savings||0)),backgroundColor:GREEN,borderRadius:5,datalabels:barLabels('#fff',9)},
+    {label:'Manual Equiv (h)',data:aw.map(w=>+fh(+w.manual_equiv||0)),backgroundColor:TEAL,borderRadius:5,datalabels:barLabels('#fff',9)},
+    {label:'Maintenance (h)',data:aw.map(w=>+fh(+w.maintenance||0)),backgroundColor:YELLOW,borderRadius:5,datalabels:barLabels('#fff',9)},
+  ]},options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+  const ap=d.byPerson;
+  mkChart('auto-c-person',{type:'bar',data:{labels:ap.map(p=>p['Person-in-charge']),datasets:[
+    {label:'Savings (h)',data:ap.map(p=>+fh(+p.savings||0)),backgroundColor:GREEN,borderRadius:6,datalabels:barLabels('#fff')},
+    {label:'Maintenance (h)',data:ap.map(p=>+fh(+p.maintenance||0)),backgroundColor:ORANGE,borderRadius:6,datalabels:barLabels('#fff')},
+  ]},options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+  document.querySelector('#auto-t tbody').innerHTML=d.topAutomations.map(a=>{
+    const roi2=a.total_manual>0?((+a.total_savings||0)/(+a.total_manual)*100).toFixed(0):'—';
+    return`<tr><td style="font-weight:500">${a.Automation_Name}</td><td class="nm">${a.weeks}</td><td class="nm">${fh(a.total_maintenance)}</td><td class="nm">${fh(a.total_manual)}</td><td class="nm" style="color:${GREEN};font-weight:700">${fh(a.total_savings)}</td><td class="nm" style="color:${+roi2>=80?GREEN:+roi2>=50?YELLOW:RED};font-weight:700">${roi2}%</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">No data</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════
+// SUPPORT
+// ══════════════════════════════════════════════════════
+function initSupport(){
+  const d=DATA.support;
+  document.getElementById('sup-sub').textContent=`IT Support · ${d.kpi.weeks} weeks · SLA: ${d.kpi.slaCompliance}% compliance`;
+  renderKpis('sup-kpis',[
+    {l:'Avg SD Requests',v:fh(d.kpi.avgRequests),u:'per week',ic:'🎫',c:ORANGE},
+    {l:'Peak Requests',v:d.kpi.peakRequests,u:'highest week',ic:'📈',c:RED},
+    {l:'Security Score',v:(d.kpi.avgSecurityScore*100).toFixed(1)+'%',u:`Target: ${(d.kpi.targetSecurityScore*100).toFixed(0)}%`,ic:'🔒',c:d.kpi.avgSecurityScore>=d.kpi.targetSecurityScore?GREEN:RED,trend:{cls:d.kpi.avgSecurityScore>=d.kpi.targetSecurityScore?'up':'down',txt:d.kpi.avgSecurityScore>=d.kpi.targetSecurityScore?'Above target':'Below target'}},
+    {l:'SLA Compliance',v:fp(d.kpi.slaCompliance),u:'target: 100%',ic:'✅',c:d.kpi.slaCompliance>=100?GREEN:RED},
+    {l:'Total Incidents',v:d.kpi.totalIncidents,u:'reported',ic:'🚨',c:d.kpi.totalIncidents===0?GREEN:RED},
+    {l:'Weeks Tracked',v:d.kpi.weeks,u:'data points',ic:'📅',c:PURPLE},
+  ]);
+  const bw=d.byWeek;
+  mkChart('sup-c-req',{type:'bar',data:{labels:bw.map(w=>`W${w['Week No']}`),datasets:[{label:'SD Requests',data:bw.map(w=>w['SD Request']),backgroundColor:bw.map(w=>w['SD Request']>40?RED:ORANGE),borderRadius:6,datalabels:barLabelsInt('#fff')}]},options:{responsive:true,maintainAspectRatio:false,...CD,layout:{padding:{top:24}}}});
+  mkChart('sup-c-sec',{type:'line',data:{labels:bw.map(w=>`W${w['Week No']}`),datasets:[
+    {label:'Security Score',data:bw.map(w=>+(w['Security Score']*100).toFixed(2)),borderColor:GREEN,backgroundColor:'rgba(22,163,74,.08)',fill:true,tension:.4,pointRadius:5,pointBackgroundColor:GREEN,pointBorderColor:'#fff',pointBorderWidth:2,datalabels:{display:true,color:GREEN,anchor:'top',align:'top',offset:4,font:{family:'DM Mono',size:9,weight:'600'},formatter:v=>v+'%'}},
+    {label:'Target',data:bw.map(w=>+(w['Target Security Score']*100).toFixed(0)),borderColor:RED,borderDash:[5,5],pointRadius:0,tension:0,datalabels:{display:false}},
+  ]},options:{responsive:true,maintainAspectRatio:false,...CD}});
+  document.querySelector('#sup-t tbody').innerHTML=bw.map(w=>`<tr>
+    <td class="nm" style="font-weight:600">Week ${w['Week No']}</td>
+    <td class="nm" style="color:${w['SD Request']>40?RED:'var(--text)'};font-weight:600">${w['SD Request']}</td>
+    <td class="nm" style="color:${w['Security Score']>=w['Target Security Score']?GREEN:RED};font-weight:600">${(w['Security Score']*100).toFixed(2)}%</td>
+    <td class="nm" style="color:var(--text3)">${(w['Target Security Score']*100).toFixed(0)}%</td>
+    <td class="nm" style="color:${w['Incident Report']>0?RED:'var(--text3)'}">${w['Incident Report']}</td>
+    <td>${chip(w['SLA Compliance Rate']===1?'On Track':'Overdue')}</td>
+  </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════
+// DEXIQ
+// ══════════════════════════════════════════════════════
+function initDexIQ(){
+  const d=DATA.dexiq;
+  document.getElementById('dexiq-sub').textContent=`DexIQ Platform · ${d.kpi.sprints} Sprints · ${d.kpi.totalTickets} total tickets`;
+  renderKpis('dexiq-kpis',[
+    {l:'Total Tickets',v:d.kpi.totalTickets,u:'all issues',ic:'🎫',c:TEAL},
+    {l:'Live (Prod)',v:d.kpi.live,u:`${(d.kpi.live/d.kpi.totalTickets*100).toFixed(0)}% deployed`,ic:'🟢',c:GREEN,trend:{cls:'up',txt:`${(d.kpi.live/d.kpi.totalTickets*100).toFixed(0)}% done`}},
+    {l:'In Progress',v:d.kpi.inProgress,u:'being worked on',ic:'🔄',c:BLUE},
+    {l:'Backlog',v:d.kpi.backlog,u:'queued up',ic:'📋',c:PURPLE},
+    {l:'Bugs',v:d.kpi.bugs,u:'reported issues',ic:'🐛',c:d.kpi.bugs>20?RED:YELLOW,trend:{cls:d.kpi.bugs>20?'down':'neutral',txt:`${(d.kpi.bugs/d.kpi.totalTickets*100).toFixed(0)}% of total`}},
+    {l:'High Priority',v:d.kpi.highPriority,u:'high/highest',ic:'🔴',c:d.kpi.highPriority>10?RED:ORANGE},
+  ]);
+  const sc={'LIVE (Deployed on Prod)':TEAL,'In Progress':BLUE,'Selected for Development':GREY,'Backlog':'#d1d5db','QA-QC (Deployed on Stg)':PURPLE};
+  mkChart('dexiq-c-status',{type:'doughnut',data:{labels:d.statusDist.map(s=>s.Status),datasets:[{data:d.statusDist.map(s=>s.count),backgroundColor:d.statusDist.map(s=>sc[s.Status]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+  const pc={'High':RED,'Highest':RED,'Medium':YELLOW,'Low':GREEN};
+  mkChart('dexiq-c-priority',{type:'doughnut',data:{labels:d.priorityDist.map(s=>s.Priority),datasets:[{data:d.priorityDist.map(s=>s.count),backgroundColor:d.priorityDist.map(s=>pc[s.Priority]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+  const tc={'Story':BLUE,'Bug':RED,'Task':YELLOW};
+  mkChart('dexiq-c-type',{type:'doughnut',data:{labels:d.typeDist.map(s=>s['Issue Type']),datasets:[{data:d.typeDist.map(s=>s.count),backgroundColor:d.typeDist.map(s=>tc[s['Issue Type']]||GREY),borderWidth:2,borderColor:'#fff',hoverOffset:6}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{...CD.plugins,datalabels:{display:true,color:'#fff',font:{family:'DM Mono',size:11,weight:'600'},formatter:(v,ctx)=>{const t=ctx.dataset.data.reduce((a,b)=>a+b,0);return v>0?`${Math.round(v/t*100)}%`:''}}}}});
+  const sp=d.bySprint;
+  mkChart('dexiq-c-sprint',{type:'bar',data:{labels:sp.map(s=>`Sprint ${s['Sprint No']}`),datasets:[
+    {label:'Live',data:sp.map(s=>s.live),backgroundColor:TEAL,borderRadius:4,datalabels:stackLabels()},
+    {label:'In Progress',data:sp.map(s=>s.in_progress),backgroundColor:BLUE,borderRadius:4,datalabels:stackLabels()},
+    {label:'QA',data:sp.map(s=>s.qa),backgroundColor:PURPLE,borderRadius:4,datalabels:stackLabels()},
+    {label:'Backlog',data:sp.map(s=>s.backlog),backgroundColor:GREY,borderRadius:4,datalabels:stackLabels()},
+    {label:'Bugs',data:sp.map(s=>s.bugs),backgroundColor:RED,borderRadius:4,datalabels:stackLabels()},
+  ]},options:{responsive:true,maintainAspectRatio:false,...CD,scales:{...CD.scales,x:{...CD.scales.x,stacked:true},y:{...CD.scales.y,stacked:true}}}});
+  document.querySelector('#dexiq-t-assignee tbody').innerHTML=d.byAssignee.map(a=>`<tr>
+    <td style="font-weight:600">${a.Assignee}</td>
+    <td class="nm">${a.tickets}</td>
+    <td class="nm" style="color:${TEAL};font-weight:700">${a.live}</td>
+    <td class="nm" style="color:${a.bugs>5?RED:'var(--text)'};font-weight:600">${a.bugs}</td>
+  </tr>`).join('');
+}
+
+// ── BOOT ──
+fetchData(false).then(()=>{
+  if(refreshTimer)clearInterval(refreshTimer);
+  refreshTimer=setInterval(()=>fetchData(true),AUTO_REFRESH_MS);
+});
+</script>
+</body>
+</html>
