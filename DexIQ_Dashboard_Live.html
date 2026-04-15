@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DexIQ Live Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#080c14;--surface:#0d1420;--surface2:#111827;--surface3:#1a2235;
+    --border:rgba(255,255,255,0.07);
+    --teal:#00d4b8;--blue:#3b82f6;--yellow:#f59e0b;--green:#10b981;
+    --red:#ef4444;--orange:#f97316;--purple:#8b5cf6;
+    --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;
+    --card-radius:14px;--font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overflow-x:hidden}
+
+  /* ── TOPBAR ── */
+  .topbar{position:sticky;top:0;z-index:100;background:rgba(8,12,20,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:56px}
+  .logo{display:flex;align-items:center;gap:10px;font-size:16px;font-weight:700;letter-spacing:-.3px}
+  .logo-icon{width:30px;height:30px;border-radius:7px;background:linear-gradient(135deg,var(--teal),var(--blue));display:flex;align-items:center;justify-content:center;font-size:15px}
+  .logo em{color:var(--teal);font-style:normal}
+  .nav-tabs{display:flex;gap:3px}
+  .nav-tab{padding:6px 16px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);border:none;background:transparent;transition:all .18s;display:flex;align-items:center;gap:6px;font-family:var(--font)}
+  .nav-tab:hover{color:var(--text);background:var(--surface3)}
+  .nav-tab.active{color:#000;background:var(--teal);font-weight:600}
+  .nav-dot{width:7px;height:7px;border-radius:50%}
+  .topbar-right{display:flex;align-items:center;gap:10px}
+
+  /* ── LIVE STATUS ── */
+  .live-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:20px;font-size:11.5px;color:var(--text2);font-family:var(--mono);cursor:pointer;transition:border-color .2s}
+  .live-badge:hover{border-color:var(--teal)}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .live-dot.syncing{background:var(--yellow);animation:blink .6s infinite}
+  .live-dot.error{background:var(--red)}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+  .live-time{color:var(--text3)}
+
+  /* ── TOAST ── */
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--surface3);border:1px solid var(--border);border-left:3px solid var(--teal);border-radius:10px;padding:12px 18px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;pointer-events:none;max-width:340px}
+  .toast.show{transform:none;opacity:1}
+  .toast.error{border-left-color:var(--red)}
+
+  /* ── PANELS ── */
+  .panel{display:none;padding:24px;animation:fadeUp .25s ease}
+  .panel.active{display:block}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ── LOADING SCREEN ── */
+  #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999}
+  .spinner{width:36px;height:36px;border:3px solid var(--surface3);border-top-color:var(--teal);border-radius:50%;animation:spin 0.7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{font-size:14px;color:var(--text2)}
+
+  /* ── SECTION ── */
+  .section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+  .section-title{font-size:21px;font-weight:700;letter-spacing:-.4px}
+  .section-title em{color:var(--teal);font-style:normal}
+  .section-sub{font-size:12.5px;color:var(--text3);margin-top:3px}
+
+  /* ── KPI CARDS ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:13px;margin-bottom:24px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:18px 16px 14px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;cursor:default}
+  .kpi-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.13)}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--teal));border-radius:var(--card-radius) var(--card-radius) 0 0}
+  .kpi-label{font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:9px}
+  .kpi-value{font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1}
+  .kpi-unit{font-size:11px;color:var(--text2);margin-top:5px}
+  .kpi-icon{position:absolute;top:16px;right:14px;font-size:19px;opacity:.22}
+  .kpi-delta{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;margin-top:6px;padding:2px 7px;border-radius:20px}
+  .kpi-delta.up{background:rgba(16,185,129,.1);color:var(--green)}
+  .kpi-delta.down{background:rgba(239,68,68,.1);color:var(--red)}
+
+  /* ── GRID ── */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .grid-65{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px}
+  .full{margin-bottom:16px}
+  @media(max-width:860px){.grid-2,.grid-65{grid-template-columns:1fr}}
+
+  /* ── CARD ── */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--card-radius);padding:18px;height:100%}
+  .card-title{font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+  .ct-dot{width:9px;height:9px;border-radius:2px;background:var(--cc,var(--teal))}
+
+  /* ── FILTERS ── */
+  .filters-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+  .filter-label{font-size:11px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+  .filter-btn{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;border:1px solid var(--border);background:var(--surface2);color:var(--text2);cursor:pointer;transition:all .15s;font-family:var(--font)}
+  .filter-btn:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
+  .filter-btn.active{background:var(--teal);border-color:var(--teal);color:#000;font-weight:600}
+  select.fsel{padding:5px 12px;border-radius:6px;font-size:12px;border:1px solid var(--border);background:var(--surface2);color:var(--text);cursor:pointer;font-family:var(--font);outline:none}
+  select.fsel:focus{border-color:var(--teal)}
+  .divider{width:1px;height:20px;background:var(--border);margin:0 4px}
+
+  /* ── TABLE ── */
+  .tbl-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+  .tbl-scroll{max-height:330px;overflow-y:auto}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  thead th{background:var(--surface3);color:var(--text2);padding:10px 13px;text-align:left;font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface3)}
+  tbody td{padding:9px 13px;color:var(--text);white-space:nowrap}
+  td.num{font-family:var(--mono);font-size:12px;text-align:right}
+
+  /* ── CHIPS ── */
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .chip::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+  .chip-done{background:rgba(16,185,129,.12);color:#10b981}
+  .chip-progress{background:rgba(59,130,246,.12);color:#3b82f6}
+  .chip-todo{background:rgba(100,116,139,.12);color:#94a3b8}
+  .chip-qa{background:rgba(139,92,246,.12);color:#8b5cf6}
+  .chip-ontrack{background:rgba(16,185,129,.12);color:#10b981}
+  .chip-overdue{background:rgba(239,68,68,.12);color:#ef4444}
+  .chip-mild{background:rgba(245,158,11,.12);color:#f59e0b}
+  .chip-notstart{background:rgba(100,116,139,.12);color:#94a3b8}
+  .chip-ongoing{background:rgba(59,130,246,.12);color:#3b82f6}
+
+  /* ── MISC ── */
+  .days-pos{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--red)}
+  .days-neg{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--green)}
+  .days-zero{font-family:var(--mono);font-size:12px;color:var(--text3)}
+  .empty{text-align:center;padding:36px;color:var(--text3);font-size:13px}
+  .chart-wrap{position:relative}
+  canvas{max-width:100%}
+  code.key{font-family:var(--mono);font-size:11px}
+</style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">Loading dashboard data…</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div id="app" style="display:none">
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>Dex<em>IQ</em> Dashboard</div>
+  </div>
+  <nav class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('bit',this)"><span class="nav-dot" style="background:var(--teal)"></span>BIT Team</button>
+    <button class="nav-tab" onclick="switchTab('web',this)"><span class="nav-dot" style="background:var(--blue)"></span>Web Team</button>
+    <button class="nav-tab" onclick="switchTab('projects',this)"><span class="nav-dot" style="background:var(--green)"></span>Projects</button>
+  </nav>
+  <div class="topbar-right">
+    <div class="live-badge" onclick="manualRefresh()" title="Click to refresh now">
+      <span class="live-dot" id="live-dot"></span>
+      <span id="live-label">Live</span>
+      <span class="live-time" id="live-time"></span>
+    </div>
+  </div>
+</div>
+
+<!-- BIT PANEL -->
+<div id="panel-bit" class="panel active">
+  <div class="section-head">
+    <div>
+      <div class="section-title">BIT Team <em>Performance</em></div>
+      <div class="section-sub" id="bit-sub"></div>
+    </div>
+    <div class="filters-row" style="margin:0">
+      <span class="filter-label">Sprint:</span>
+      <div id="bit-sprint-filters" class="filter-group" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="bit-kpis"></div>
+  <div class="grid-65">
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--teal)"></span>Time Spent vs Estimate · by Assignee</div>
+      <div class="chart-wrap" style="height:210px"><canvas id="bit-chart-assignee"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--purple)"></span>Status Distribution</div>
+      <div class="chart-wrap" style="height:210px"><canvas id="bit-chart-status"></canvas></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--teal)"></span>Assignee Breakdown</div>
+      <div class="tbl-wrap">
+        <table id="bit-tbl-assignee"><thead><tr><th>Assignee</th><th>Tickets</th><th>TS (h)</th><th>OE (h)</th><th>Variance</th><th>Eff %</th><th>Done</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--blue)"></span>Sprint Velocity</div>
+      <div class="chart-wrap" style="height:230px"><canvas id="bit-chart-sprint"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-title"><span class="ct-dot" style="--cc:var(--text3)"></span>All Issues</div>
+    <div class="filters-row">
+      <select class="fsel" id="bit-f-assignee" onchange="renderBitTable()"><option value="">All Assignees</option></select>
+      <select class="fsel" id="bit-f-status" onchange="renderBitTable()"><option value="">All Statuses</option></select>
+    </div>
+    <div class="tbl-wrap tbl-scroll">
+      <table id="bit-tbl-issues"><thead><tr><th>Key</th><th>Summary</th><th>Sprint</th><th>Assignee</th><th>Status</th><th>TS (h)</th><th>OE (h)</th><th>Variance</th><th>Eff %</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- WEB PANEL -->
+<div id="panel-web" class="panel">
+  <div class="section-head">
+    <div>
+      <div class="section-title" style="--teal:var(--blue)">Web Team <em style="color:var(--blue)">Performance</em></div>
+      <div class="section-sub" id="web-sub"></div>
+    </div>
+    <div class="filters-row" style="margin:0">
+      <span class="filter-label">Board:</span>
+      <div id="web-board-filters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="web-kpis"></div>
+  <div class="grid-65">
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--blue)"></span>Time Spent vs Estimate · by Board</div>
+      <div class="chart-wrap" style="height:210px"><canvas id="web-chart-board"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--blue)"></span>Status Distribution</div>
+      <div class="chart-wrap" style="height:210px"><canvas id="web-chart-status"></canvas></div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--blue)"></span>Board Summary</div>
+      <div class="tbl-wrap">
+        <table id="web-tbl-board"><thead><tr><th>Board</th><th>Tickets</th><th>TS (h)</th><th>OE (h)</th><th>Variance</th><th>Eff %</th><th>Done</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--yellow)"></span>Sprint Breakdown</div>
+      <div class="chart-wrap" style="height:230px"><canvas id="web-chart-sprint"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-title"><span class="ct-dot" style="--cc:var(--text3)"></span>All Issues</div>
+    <div class="filters-row">
+      <select class="fsel" id="web-f-board" onchange="renderWebTable()"><option value="">All Boards</option></select>
+      <select class="fsel" id="web-f-status" onchange="renderWebTable()"><option value="">All Statuses</option></select>
+    </div>
+    <div class="tbl-wrap tbl-scroll">
+      <table id="web-tbl-issues"><thead><tr><th>Key</th><th>Summary</th><th>Sprint</th><th>Board</th><th>Status</th><th>Priority</th><th>TS (h)</th><th>OE (h)</th><th>Variance</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- PROJECTS PANEL -->
+<div id="panel-projects" class="panel">
+  <div class="section-head">
+    <div>
+      <div class="section-title">Projects <em style="color:var(--green)">SLA Tracker</em></div>
+      <div class="section-sub" id="proj-sub"></div>
+    </div>
+    <div class="filters-row" style="margin:0">
+      <span class="filter-label">Owner:</span>
+      <div id="proj-owner-filters" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+    </div>
+  </div>
+  <div class="kpi-grid" id="proj-kpis"></div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--green)"></span>SLA Status Distribution</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="proj-chart-sla"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ct-dot" style="--cc:var(--teal)"></span>Projects by Owner</div>
+      <div class="chart-wrap" style="height:220px"><canvas id="proj-chart-owner"></canvas></div>
+    </div>
+  </div>
+  <div class="full card">
+    <div class="card-title"><span class="ct-dot" style="--cc:var(--green)"></span>Project Delivery Status</div>
+    <div class="filters-row">
+      <select class="fsel" id="proj-f-status" onchange="renderProjTable()"><option value="">All Statuses</option><option>Done</option><option>Ongoing</option><option>Not Started</option></select>
+      <select class="fsel" id="proj-f-sla" onchange="renderProjTable()"><option value="">All SLA</option><option>On Track</option><option>1-7 Days Overdue</option><option>Overdue</option><option>Not Started</option></select>
+    </div>
+    <div class="tbl-wrap">
+      <table id="proj-tbl"><thead><tr><th>Project Name</th><th>Owner</th><th>Requestor</th><th>Status</th><th>Start</th><th>Target</th><th>Ended</th><th>Days Late</th><th>SLA</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#app -->
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+//  LIVE DATA LOADER — SharePoint REST API
+//
+//  Uses SharePoint's own /_api/web/GetFileByServerRelativePath endpoint
+//  to fetch dashboard_data.json. This avoids CORS issues because the
+//  request is same-origin (HTML and JSON are on the same SharePoint site).
+//
+//  SHAREPOINT_SITE: the /sites/XXX portion of your SharePoint URL.
+//  JSON_SERVER_PATH: server-relative path to dashboard_data.json.
+//
+//  These are auto-detected from window.location — no manual config needed
+//  as long as the HTML and JSON are in the same Document Library folder.
+// ══════════════════════════════════════════════════════════════════
+// GitHub Pages URLs — data is pushed here by sync_sharepoint.py
+const GITHUB_PAGES_BASE = 'https://edzarquiza.github.io/dexiq-dashboard';
+const AUTO_REFRESH_MS   = 30_000; // auto-refresh every 30 seconds
+
+// Auto-detect SharePoint site and JSON path from current page URL
+// e.g. https://org.sharepoint.com/sites/BIT/Shared Documents/Dashboard/DexIQ_Dashboard_Live.html
+// → siteUrl  = https://org.sharepoint.com/sites/BIT
+// → jsonPath = /sites/BIT/Shared Documents/Dashboard/dashboard_data.json
+function getSharePointConfig() {
+  const loc = window.location;
+  const isSharePoint = loc.hostname.includes('sharepoint.com');
+
+  if (isSharePoint) {
+    // Extract site URL: everything up to /sites/SITENAME
+    const siteMatch = loc.pathname.match(/^(\/sites\/[^\/]+)/);
+    const sitePath  = siteMatch ? siteMatch[1] : '';
+    const siteUrl   = loc.origin + sitePath;
+
+    // Replace the HTML filename with dashboard_data.json in the same folder
+    const jsonServerPath = loc.pathname.replace(/\/[^\/]+\.html(\?.*)?$/, '/dashboard_data.json');
+
+    return { isSharePoint: true, siteUrl, jsonServerPath };
+  }
+
+  // Local / non-SharePoint fallback
+  return { isSharePoint: false };
+}
+
+let DATA = null;
+let refreshTimer = null;
+let isInitialized = false;
+
+// ── State ──
+let bitSprintFilter = 'All';
+let webBoardFilter  = 'All';
+let projOwnerFilter = 'All';
+const charts = {};
+
+// ── Fetch + load ──
+async function fetchData(silent = false) {
+  setLiveStatus('syncing');
+  try {
+    const cfg = getSharePointConfig();
+    let newData;
+
+    // Always fetch from GitHub Pages — no CORS issues, works from any browser
+    const jsonUrl = GITHUB_PAGES_BASE + '/dashboard_data.json?_=' + Date.now();
+    const res = await fetch(jsonUrl, { cache: 'no-store' });
+    if (res.status === 404) throw new Error('dashboard_data.json not found on GitHub Pages — has the sync script run yet?');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    newData = await res.json();
+
+    const changed = DATA && JSON.stringify(DATA.bit.kpi) !== JSON.stringify(newData.bit.kpi);
+    DATA = newData;
+
+    if (!isInitialized) {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      initAll();
+      isInitialized = true;
+    } else if (changed) {
+      refreshAll();
+      if (!silent) showToast('✅ Dashboard refreshed with new data', false);
+    }
+
+    setLiveStatus('live', DATA.refreshTime || '');
+    return true;
+
+  } catch (e) {
+    setLiveStatus('error');
+    const msg = e.message || String(e);
+    if (!isInitialized) {
+      document.getElementById('loading').innerHTML = `
+        <div style="color:var(--red);font-size:14px;text-align:center;max-width:460px;padding:24px;line-height:1.7">
+          <div style="font-size:32px;margin-bottom:14px">⚠️</div>
+          <strong>Could not load dashboard data</strong><br><br>
+          <span style="color:var(--text2);font-size:13px">${msg}</span><br><br>
+          <span style="color:var(--text3);font-size:12px">
+            Make sure <code style="background:var(--surface3);padding:2px 6px;border-radius:4px;font-family:var(--mono)">sync_sharepoint.py</code> has run at least once
+            and <code style="background:var(--surface3);padding:2px 6px;border-radius:4px;font-family:var(--mono)">dashboard_data.json</code> is in the same SharePoint folder as this HTML file.
+          </span><br><br>
+          <button onclick="fetchData()" style="padding:8px 20px;background:var(--teal);color:#000;border:none;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font)">Retry</button>
+        </div>`;
+    } else {
+      showToast('⚠️ Refresh failed — ' + msg, true);
+    }
+    return false;
+  }
+}
+
+function setLiveStatus(state, time = '') {
+  const dot = document.getElementById('live-dot');
+  const label = document.getElementById('live-label');
+  const ltime = document.getElementById('live-time');
+  dot.className = 'live-dot';
+  if (state === 'live')    { dot.style.background='var(--green)'; label.textContent='Live'; }
+  if (state === 'syncing') { dot.classList.add('syncing'); dot.style.background=''; label.textContent='Syncing…'; }
+  if (state === 'error')   { dot.classList.add('error'); dot.style.background=''; label.textContent='Error'; }
+  ltime.textContent = time ? `· ${time}` : '';
+}
+
+function manualRefresh() { fetchData(false); }
+
+function startAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(() => fetchData(true), AUTO_REFRESH_MS);
+}
+
+// ── Toast ──
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.classList.remove('show'); }, 3500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════════
+const fmtH   = v => (+v||0).toFixed(1);
+const fmtPct = v => (+v||0).toFixed(1) + '%';
+
+function chip(s) {
+  const m = { Done:'chip-done','In Progress':'chip-progress','To Do':'chip-todo','QA/QC':'chip-qa',
+              'On Track':'chip-ontrack','Overdue':'chip-overdue','1-7 Days Overdue':'chip-mild',
+              'Not Started':'chip-notstart','Ongoing':'chip-ongoing' };
+  return `<span class="chip ${m[s]||'chip-todo'}">${s}</span>`;
+}
+
+function daysCell(d) {
+  if (d===null||d===undefined||d==='None') return '<span class="days-zero">—</span>';
+  const n = +d;
+  if (n>0) return `<span class="days-pos">+${n}d</span>`;
+  if (n<0) return `<span class="days-neg">${n}d</span>`;
+  return `<span class="days-zero">0d</span>`;
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  const [y,m,day] = d.split('-');
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1];
+  return `${day} ${mon} ${y}`;
+}
+
+const DC = {
+  color:'#94a3b8',
+  plugins:{
+    legend:{labels:{color:'#94a3b8',font:{family:'Space Grotesk',size:11.5},boxWidth:11,padding:12}},
+    tooltip:{backgroundColor:'#1a2235',borderColor:'rgba(255,255,255,.1)',borderWidth:1,
+      titleColor:'#e2e8f0',bodyColor:'#94a3b8',
+      titleFont:{family:'Space Grotesk',weight:'600'},
+      bodyFont:{family:'JetBrains Mono',size:11.5},padding:10}
+  },
+  scales:{
+    x:{ticks:{color:'#64748b',font:{family:'Space Grotesk',size:11}},grid:{color:'rgba(255,255,255,.04)'},border:{color:'transparent'}},
+    y:{ticks:{color:'#64748b',font:{family:'JetBrains Mono',size:11}},grid:{color:'rgba(255,255,255,.04)'},border:{color:'transparent'}}
+  }
+};
+
+function mkChart(id, cfg) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), cfg);
+  return charts[id];
+}
+
+function sprintLabel(s) {
+  return s.replace('DexIQ Sprint ','DexIQ S').replace('Dexterous Group Sprint ','DG S')
+          .replace('MRKTNG Sprint ','MKT S').replace('Energin Sprint ','EN S')
+          .replace('DA Sprint ','DA S');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  TAB
+// ══════════════════════════════════════════════════════════════════
+function switchTab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  INIT ALL (first load)
+// ══════════════════════════════════════════════════════════════════
+function initAll() {
+  initBIT();
+  initWEB();
+  initPROJ();
+}
+
+function refreshAll() {
+  bitSprintFilter = 'All';
+  webBoardFilter  = 'All';
+  projOwnerFilter = 'All';
+  initBIT();
+  initWEB();
+  initPROJ();
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BIT
+// ══════════════════════════════════════════════════════════════════
+function initBIT() {
+  const d = DATA.bit;
+  document.getElementById('bit-sub').textContent =
+    `DA Project · ${d.kpi.sprints} Sprints · ${[...new Set(d.issues.map(i=>i.Assignee))].length} Members`;
+
+  renderKpis('bit-kpis', [
+    {label:'Time Spent',    value:fmtH(d.kpi.totalTS),  unit:'hours logged',   icon:'⏱️', c:'var(--teal)'},
+    {label:'Estimated',     value:fmtH(d.kpi.totalOE),  unit:'hours estimated',icon:'📋', c:'var(--blue)'},
+    {label:'Avg Efficiency',value:fmtPct(d.kpi.avgEff), unit:'vs estimate',    icon:'⚡', c:d.kpi.avgEff>=100?'var(--green)':'var(--yellow)'},
+    {label:'Done Rate',     value:fmtPct(d.kpi.doneRate),unit:'completed',     icon:'✅', c:'var(--green)'},
+    {label:'Total Tickets', value:d.kpi.totalTickets,   unit:'issues',         icon:'🎫', c:'var(--purple)'},
+    {label:'Sprints',       value:d.kpi.sprints,        unit:'DA project',     icon:'🏃', c:'var(--orange)'},
+  ]);
+
+  // Sprint filter buttons
+  const sprints = ['All', ...d.bySprint.map(s=>s.Sprint)];
+  document.getElementById('bit-sprint-filters').innerHTML =
+    sprints.map(s=>`<button class="filter-btn ${s===bitSprintFilter?'active':''}" onclick="setBitSprint('${s}',this)">${s}</button>`).join('');
+
+  // Populate selects
+  populateSelect('bit-f-assignee', [...new Set(d.issues.map(i=>i.Assignee))]);
+  populateSelect('bit-f-status',   [...new Set(d.issues.map(i=>i.Status))]);
+
+  renderBitCharts();
+  renderBitAssigneeTable();
+  renderBitTable();
+}
+
+function setBitSprint(s, btn) {
+  bitSprintFilter = s;
+  document.querySelectorAll('#bit-sprint-filters .filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderBitCharts(); renderBitAssigneeTable(); renderBitTable();
+}
+
+function getBitIssues() {
+  let issues = DATA.bit.issues;
+  if (bitSprintFilter !== 'All') issues = issues.filter(i=>i.Sprint===bitSprintFilter);
+  const a = document.getElementById('bit-f-assignee')?.value;
+  const s = document.getElementById('bit-f-status')?.value;
+  if (a) issues = issues.filter(i=>i.Assignee===a);
+  if (s) issues = issues.filter(i=>i.Status===s);
+  return issues;
+}
+
+function renderBitCharts() {
+  const issues = getBitIssues();
+  const assignees = [...new Set(issues.map(i=>i.Assignee))];
+  const tsA = assignees.map(a=>issues.filter(i=>i.Assignee===a).reduce((s,i)=>s+(i.ts||0),0));
+  const oeA = assignees.map(a=>issues.filter(i=>i.Assignee===a).reduce((s,i)=>s+(i.oe||0),0));
+
+  mkChart('bit-chart-assignee',{type:'bar',data:{
+    labels:assignees.map(a=>a.split(' ')[0]),
+    datasets:[{label:'Time Spent (h)',data:tsA,backgroundColor:'rgba(0,212,184,.75)',borderRadius:6},
+              {label:'Estimate (h)',  data:oeA,backgroundColor:'rgba(245,158,11,.6)',borderRadius:6}]
+  },options:{responsive:true,maintainAspectRatio:false,...DC}});
+
+  const sm={};issues.forEach(i=>{sm[i.Status]=(sm[i.Status]||0)+1});
+  const sc={Done:'#10b981','In Progress':'#3b82f6','To Do':'#475569','QA/QC':'#8b5cf6'};
+  mkChart('bit-chart-status',{type:'doughnut',data:{
+    labels:Object.keys(sm),
+    datasets:[{data:Object.values(sm),backgroundColor:Object.keys(sm).map(s=>sc[s]||'#64748b'),borderWidth:0,hoverOffset:6}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{...DC.plugins}}});
+
+  const sprints = bitSprintFilter==='All'?DATA.bit.bySprint:DATA.bit.bySprint.filter(s=>s.Sprint===bitSprintFilter);
+  mkChart('bit-chart-sprint',{type:'bar',data:{
+    labels:sprints.map(s=>sprintLabel(s.Sprint)),
+    datasets:[{label:'Done',data:sprints.map(s=>s.done),backgroundColor:'rgba(16,185,129,.8)',borderRadius:4},
+              {label:'In Progress',data:sprints.map(s=>s.in_progress),backgroundColor:'rgba(59,130,246,.8)',borderRadius:4},
+              {label:'QA/QC',data:sprints.map(s=>s.qa),backgroundColor:'rgba(139,92,246,.8)',borderRadius:4},
+              {label:'To Do',data:sprints.map(s=>s.todo),backgroundColor:'rgba(100,116,139,.5)',borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,...DC,
+    scales:{...DC.scales,x:{...DC.scales.x,stacked:true},y:{...DC.scales.y,stacked:true}}}});
+}
+
+function renderBitAssigneeTable() {
+  const issues = getBitIssues();
+  const assignees = [...new Set(issues.map(i=>i.Assignee))];
+  document.querySelector('#bit-tbl-assignee tbody').innerHTML = assignees.map(a=>{
+    const rows = issues.filter(i=>i.Assignee===a);
+    const ts = rows.reduce((s,i)=>s+(i.ts||0),0);
+    const oe = rows.reduce((s,i)=>s+(i.oe||0),0);
+    const eff = ts>0?(oe/ts*100).toFixed(1):'—';
+    return `<tr><td>${a}</td><td class="num">${rows.length}</td><td class="num">${fmtH(ts)}</td>
+      <td class="num">${fmtH(oe)}</td>
+      <td class="num" style="color:${oe-ts>=0?'var(--green)':'var(--red)'}">${fmtH(oe-ts)}</td>
+      <td class="num" style="color:${+eff>=100?'var(--green)':'var(--yellow)'}">${eff}%</td>
+      <td class="num">${rows.filter(i=>i.Status==='Done').length}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No data</td></tr>';
+}
+
+function renderBitTable() {
+  const issues = getBitIssues();
+  document.querySelector('#bit-tbl-issues tbody').innerHTML = issues.map(i=>`<tr>
+    <td><code class="key" style="color:var(--teal)">${i.Key}</code></td>
+    <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)" title="${i.Summary||''}">${i.Summary||''}</td>
+    <td style="font-size:11px;color:var(--text3)">${i.Sprint}</td>
+    <td style="font-size:12px">${(i.Assignee||'').split(' ')[0]}</td>
+    <td>${chip(i.Status)}</td>
+    <td class="num">${fmtH(i.ts)}</td><td class="num">${fmtH(i.oe)}</td>
+    <td class="num" style="color:${(i.variance||0)>=0?'var(--green)':'var(--red)'}">${fmtH(i.variance)}</td>
+    <td class="num" style="color:${(i.eff||0)>=100?'var(--green)':'var(--yellow)'}">${fmtPct(i.eff)}</td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No issues match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  WEB
+// ══════════════════════════════════════════════════════════════════
+function initWEB() {
+  const d = DATA.web;
+  document.getElementById('web-sub').textContent =
+    `WD Project · ${d.kpi.activeBoards} Boards · ${d.kpi.activeSprints} Sprints`;
+
+  renderKpis('web-kpis', [
+    {label:'Time Spent',    value:fmtH(d.kpi.totalTS),   unit:'hours logged',  icon:'⏱️', c:'var(--blue)'},
+    {label:'Estimated',     value:fmtH(d.kpi.totalOE),   unit:'hours est.',    icon:'📋', c:'var(--teal)'},
+    {label:'Avg Efficiency',value:fmtPct(d.kpi.avgEff),  unit:'vs estimate',   icon:'⚡', c:d.kpi.avgEff>=100?'var(--green)':'var(--yellow)'},
+    {label:'Done Rate',     value:fmtPct(d.kpi.doneRate), unit:'completed',    icon:'✅', c:'var(--green)'},
+    {label:'Total Tickets', value:d.kpi.totalTickets,    unit:'issues',        icon:'🎫', c:'var(--purple)'},
+    {label:'Active Boards', value:d.kpi.activeBoards,    unit:'sprint boards', icon:'🗂️', c:'var(--orange)'},
+  ]);
+
+  const boards = ['All', ...d.byBoard.map(b=>b.Board)];
+  document.getElementById('web-board-filters').innerHTML =
+    boards.map(b=>`<button class="filter-btn ${b===webBoardFilter?'active':''}" onclick="setWebBoard('${b}',this)">${b}</button>`).join('');
+
+  populateSelect('web-f-board',  [...new Set(d.issues.map(i=>i.Board))]);
+  populateSelect('web-f-status', [...new Set(d.issues.map(i=>i.Status))]);
+
+  renderWebCharts(); renderWebBoardTable(); renderWebTable();
+}
+
+function setWebBoard(b, btn) {
+  webBoardFilter = b;
+  document.querySelectorAll('#web-board-filters .filter-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  if (b!=='All') document.getElementById('web-f-board').value = b;
+  else document.getElementById('web-f-board').value = '';
+  renderWebCharts(); renderWebBoardTable(); renderWebTable();
+}
+
+function getWebIssues() {
+  let issues = DATA.web.issues;
+  if (webBoardFilter!=='All') issues = issues.filter(i=>i.Board===webBoardFilter);
+  const b = document.getElementById('web-f-board')?.value;
+  const s = document.getElementById('web-f-status')?.value;
+  if (b) issues = issues.filter(i=>i.Board===b);
+  if (s) issues = issues.filter(i=>i.Status===s);
+  return issues;
+}
+
+function renderWebCharts() {
+  const issues = getWebIssues();
+  const bc={'DexIQ':'rgba(0,212,184,.75)','Dexterous Group':'rgba(59,130,246,.75)','Marketing':'rgba(245,158,11,.7)','Energin':'rgba(139,92,246,.75)'};
+  const boards = webBoardFilter==='All' ? DATA.web.byBoard.map(b=>b.Board) : [webBoardFilter];
+  const tsB = boards.map(b=>issues.filter(i=>i.Board===b).reduce((s,i)=>s+(i.ts||0),0));
+  const oeB = boards.map(b=>issues.filter(i=>i.Board===b).reduce((s,i)=>s+(i.oe||0),0));
+
+  mkChart('web-chart-board',{type:'bar',data:{
+    labels:boards,
+    datasets:[{label:'Time Spent (h)',data:tsB,backgroundColor:boards.map(b=>bc[b]||'rgba(99,102,241,.7)'),borderRadius:6},
+              {label:'Estimate (h)',  data:oeB,backgroundColor:'rgba(245,158,11,.5)',borderRadius:6}]
+  },options:{responsive:true,maintainAspectRatio:false,...DC}});
+
+  const sm={};issues.forEach(i=>{sm[i.Status]=(sm[i.Status]||0)+1});
+  const sc={Done:'#10b981','In Progress':'#3b82f6','To Do':'#475569'};
+  mkChart('web-chart-status',{type:'doughnut',data:{
+    labels:Object.keys(sm),
+    datasets:[{data:Object.values(sm),backgroundColor:Object.keys(sm).map(s=>sc[s]||'#64748b'),borderWidth:0,hoverOffset:6}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{...DC.plugins}}});
+
+  let spData = DATA.web.bySprint;
+  if (webBoardFilter!=='All') spData = spData.filter(s=>s.Board===webBoardFilter);
+  spData = spData.slice(-14);
+  mkChart('web-chart-sprint',{type:'bar',data:{
+    labels:spData.map(s=>sprintLabel(s.Sprint)),
+    datasets:[{label:'Done',data:spData.map(s=>s.done),backgroundColor:'rgba(16,185,129,.8)',borderRadius:4},
+              {label:'In Progress',data:spData.map(s=>s.in_progress),backgroundColor:'rgba(59,130,246,.8)',borderRadius:4},
+              {label:'To Do',data:spData.map(s=>s.todo),backgroundColor:'rgba(100,116,139,.5)',borderRadius:4}]
+  },options:{responsive:true,maintainAspectRatio:false,...DC,
+    scales:{...DC.scales,x:{...DC.scales.x,stacked:true,ticks:{...DC.scales.x.ticks,maxRotation:45}},y:{...DC.scales.y,stacked:true}}}});
+}
+
+function renderWebBoardTable() {
+  const issues = getWebIssues();
+  const boards = webBoardFilter==='All'?[...new Set(issues.map(i=>i.Board))]:[webBoardFilter];
+  document.querySelector('#web-tbl-board tbody').innerHTML = boards.map(b=>{
+    const rows = issues.filter(i=>i.Board===b);
+    const ts = rows.reduce((s,i)=>s+(i.ts||0),0);
+    const oe = rows.reduce((s,i)=>s+(i.oe||0),0);
+    const eff = ts>0?(oe/ts*100).toFixed(1):'—';
+    return `<tr><td>${b}</td><td class="num">${rows.length}</td><td class="num">${fmtH(ts)}</td>
+      <td class="num">${fmtH(oe)}</td>
+      <td class="num" style="color:${oe-ts>=0?'var(--green)':'var(--red)'}">${fmtH(oe-ts)}</td>
+      <td class="num" style="color:${+eff>=100?'var(--green)':'var(--yellow)'}">${eff}%</td>
+      <td class="num">${rows.filter(i=>i.Status==='Done').length}</td></tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">No data</td></tr>';
+}
+
+function renderWebTable() {
+  const issues = getWebIssues();
+  const pc={'High':'var(--red)','Medium':'var(--yellow)','Low':'var(--green)'};
+  document.querySelector('#web-tbl-issues tbody').innerHTML = issues.map(i=>`<tr>
+    <td><code class="key" style="color:var(--blue)">${i.Key}</code></td>
+    <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;color:var(--text2)" title="${i.Summary||''}">${i.Summary||''}</td>
+    <td style="font-size:10.5px;color:var(--text3)">${i.Sprint}</td>
+    <td style="font-size:11.5px;color:var(--text2)">${i.Board}</td>
+    <td>${chip(i.Status)}</td>
+    <td style="font-size:11.5px;font-weight:600;color:${pc[i.Priority]||'var(--text3)'}">${i.Priority||'—'}</td>
+    <td class="num">${fmtH(i.ts)}</td><td class="num">${fmtH(i.oe)}</td>
+    <td class="num" style="color:${(i.variance||0)>=0?'var(--green)':'var(--red)'}">${fmtH(i.variance)}</td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No issues match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  PROJECTS
+// ══════════════════════════════════════════════════════════════════
+function initPROJ() {
+  const d = DATA.projects;
+  document.getElementById('proj-sub').textContent =
+    `BIT Automation Projects · Owners: ${d.ownerDist.map(o=>o.Project_Owner).join(', ')}`;
+
+  renderKpis('proj-kpis', [
+    {label:'Total Projects', value:d.kpi.total,      unit:'automation projects',icon:'📁', c:'var(--teal)'},
+    {label:'On Track',       value:d.kpi.onTrack,    unit:'within SLA',         icon:'✅', c:'var(--green)'},
+    {label:'Completed',      value:d.kpi.done,       unit:'done & delivered',   icon:'🎯', c:'var(--blue)'},
+    {label:'Ongoing',        value:d.kpi.ongoing,    unit:'in progress',        icon:'🔄', c:'var(--yellow)'},
+    {label:'Overdue',        value:d.kpi.overdue,    unit:'past target date',   icon:'⚠️', c:'var(--red)'},
+    {label:'Not Started',    value:d.kpi.notStarted, unit:'pending kickoff',    icon:'⏳', c:'var(--purple)'},
+  ]);
+
+  const owners = ['All', ...d.ownerDist.map(o=>o.Project_Owner)];
+  document.getElementById('proj-owner-filters').innerHTML =
+    owners.map(o=>`<button class="filter-btn ${o===projOwnerFilter?'active':''}" onclick="setProjOwner('${o}',this)">${o}</button>`).join('');
+
+  renderProjCharts(); renderProjTable();
+}
+
+function setProjOwner(o, btn) {
+  projOwnerFilter = o;
+  document.querySelectorAll('#proj-owner-filters .filter-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  renderProjCharts(); renderProjTable();
+}
+
+function getProjList() {
+  let projs = DATA.projects.list;
+  if (projOwnerFilter!=='All') projs = projs.filter(p=>p.owner===projOwnerFilter);
+  const s = document.getElementById('proj-f-status')?.value;
+  const sla = document.getElementById('proj-f-sla')?.value;
+  if (s) projs = projs.filter(p=>p.status===s);
+  if (sla) projs = projs.filter(p=>p.sla===sla);
+  return projs;
+}
+
+function renderProjCharts() {
+  const projs = getProjList();
+  const slaMap={};projs.forEach(p=>{slaMap[p.sla]=(slaMap[p.sla]||0)+1});
+  const slaC={'On Track':'#10b981','Overdue':'#ef4444','1-7 Days Overdue':'#f59e0b','Not Started':'#8b5cf6','Unknown':'#64748b'};
+  mkChart('proj-chart-sla',{type:'doughnut',data:{
+    labels:Object.keys(slaMap),
+    datasets:[{data:Object.values(slaMap),backgroundColor:Object.keys(slaMap).map(s=>slaC[s]||'#64748b'),borderWidth:0,hoverOffset:8}]
+  },options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{...DC.plugins}}});
+
+  const filtOwners = projOwnerFilter==='All' ? DATA.projects.ownerDist : DATA.projects.ownerDist.filter(o=>o.Project_Owner===projOwnerFilter);
+  mkChart('proj-chart-owner',{type:'bar',data:{
+    labels:filtOwners.map(o=>o.Project_Owner),
+    datasets:[{label:'Total',   data:filtOwners.map(o=>o.total),       backgroundColor:'rgba(0,212,184,.3)',borderRadius:5},
+              {label:'Done',    data:filtOwners.map(o=>o.done),        backgroundColor:'rgba(16,185,129,.8)',borderRadius:5},
+              {label:'Ongoing', data:filtOwners.map(o=>o.ongoing),     backgroundColor:'rgba(59,130,246,.8)',borderRadius:5},
+              {label:'Not Started',data:filtOwners.map(o=>o.not_started),backgroundColor:'rgba(139,92,246,.5)',borderRadius:5}]
+  },options:{responsive:true,maintainAspectRatio:false,...DC}});
+}
+
+function renderProjTable() {
+  const projs = getProjList();
+  document.querySelector('#proj-tbl tbody').innerHTML = projs.map(p=>`<tr>
+    <td style="max-width:300px;font-weight:500">${p.name}</td>
+    <td><span style="font-family:var(--mono);font-size:12px;color:var(--teal)">${p.owner}</span></td>
+    <td style="font-size:12px;color:var(--text2)">${p.requestor}</td>
+    <td>${chip(p.status)}</td>
+    <td style="font-family:var(--mono);font-size:11.5px;color:var(--text3)">${fmtDate(p.start)}</td>
+    <td style="font-family:var(--mono);font-size:11.5px;color:var(--text3)">${fmtDate(p.target)}</td>
+    <td style="font-family:var(--mono);font-size:11.5px;color:var(--text3)">${fmtDate(p.end)}</td>
+    <td>${daysCell(p.days_late)}</td>
+    <td>${chip(p.sla)}</td>
+  </tr>`).join('') || '<tr><td colspan="9" class="empty">No projects match filters</td></tr>';
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  SHARED
+// ══════════════════════════════════════════════════════════════════
+function renderKpis(id, cards) {
+  document.getElementById(id).innerHTML = cards.map(k=>`
+    <div class="kpi-card" style="--kc:${k.c}">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value">${k.value}</div>
+      <div class="kpi-unit">${k.unit}</div>
+      <div class="kpi-icon">${k.icon}</div>
+    </div>`).join('');
+}
+
+function populateSelect(id, values) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  values.forEach(v => { const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o); });
+  if (cur) sel.value = cur;
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════════════════════════════
+fetchData(false).then(() => startAutoRefresh());
+</script>
+</body>
+</html>
